@@ -9,6 +9,8 @@ Generate a tutorial that enables the learner to explain behaviour, make design d
 
 The learner expects to delegate much of the implementation. Preserve the technical explanations they need to judge that implementation; do not replace them with management advice, checklists, or stock prompts.
 
+Assume from the outset that the learner is an experienced Linux SRE and an experienced C++ and Python developer, with a PhD in mathematics and theoretical computer science. Use this background to calibrate explanations and comparisons without asking the learner to establish it again. Subject-specific knowledge still needs to be established where it affects the tutorial.
+
 ## Workflow
 
 Interview → save the learner brief → establish an outline → research → write → verify → review.
@@ -20,7 +22,7 @@ For an existing tutorial, read its brief and content first. Reuse established pr
 Use the request and available project context before asking questions. Ask a small batch of focused questions whose answers materially change scope, depth, examples, or presentation. Establish:
 
 - The subject and intended work: what the learner wants to build, maintain, migrate, or diagnose, and whether there is an existing system to understand.
-- Relevant experience, unfamiliar concepts, and useful comparisons with tools they already know. Discover this rather than assuming a particular background.
+- Relevant subject-specific experience, unfamiliar concepts, and useful comparisons with tools they already know, building on the assumed background above.
 - The decisions they want to retain and the work they expect to delegate to an agent.
 - Constraints that affect the teaching: versions, environment, scale, security or operational needs, available study time, desired depth, and reading or exercise preferences.
 - Concrete outcomes: what they should be able to explain, decide, review, and verify afterwards.
@@ -33,7 +35,7 @@ Present the recommendation with a concise summary of the agreed scope and **ask 
 
 ### 2. Save the brief and establish the outline
 
-Persist a concise learner brief containing the goals, prior knowledge, intended work, retained decisions, constraints, target versions, agreed format, and any assumptions or open questions. Personal details and subject-specific experience belong in this brief, not in the reusable skill.
+Persist a concise learner brief containing the goals, prior knowledge, intended work, retained decisions, constraints, target versions, agreed format, and any assumptions or open questions. Additional personal details and subject-specific experience belong in this brief; the baseline background above may be assumed for every tutorial.
 
 Organise the outline around capabilities and decisions. Use this progression as a guide:
 
