@@ -1,120 +1,108 @@
-This file contains notes from a conversation with chatgpt.  Your job here is to draft the skll. Capture the learner’s role, the interview process, the teaching principles, the generation workflow, and the quality criteria.  Distil this file into operational instructions, rather than preserving the conversation itself.
-
-I wrote:
-
-I want to write a skill to generate a tutorial.  Today, it is about ansible, but I'm interested just now in the general instructions / prompt for doing so.  The point of generating it using AI is to target the tutorial to me and my needs.  In particular, where once I read a tutorial so that I could write code, now I generally read a tutorial so that I can collaborate on code with an LLM agent.  So my needs are different, and few tutorials on the web target this.
-
-I think what I want is the following:
-
-- start from fundamentals and proceed through to advanced
-- show code samples to illustrate, but understand that I don't plan to write much code
-- i probably want to understand something about the tools execution model and how it works
-- on the other hand, i need to understand patterns and best practice, how to work with simple examples but also how to manage complex systems built with the tool
-- i also need to understand what are anti-patterns and ways that users of the tool trip up
-
-What else should I want in this skill?
-
+---
+name: agentic-tutorials
+description: Create personalised technical tutorials for learners who direct, question, and review work implemented with an LLM agent. Use when generating or revising a tutorial for that collaboration role.
 ---
 
-chatgpt wrote:
+# Tutorials for collaborating with agents
 
-The central distinction is that you want **the understanding needed to direct, question, and review an implementation**, rather than the fluency needed to type it yourself. Those overlap, but they produce quite different tutorials.
+Generate a tutorial that enables the learner to explain behaviour, make design decisions, specify work, review generated implementations, and verify outcomes. Use code to make those abilities concrete. Do not equate competence with memorising syntax or completeness with exhaustive feature coverage.
 
-Your list already covers much of that. I would add the following requirements.
+The learner expects to delegate much of the implementation. Preserve the technical explanations they need to judge that implementation; do not replace them with management advice, checklists, or stock prompts.
 
-**1. Explain the tool’s boundaries and tradeoffs.**  
-What problem does it solve? When is it a good fit, when is it unnecessary, and when should another tool own part of the problem? Include what it cannot guarantee. Otherwise, you can become good at discussing a tool without knowing whether the agent should be using it.
+## Workflow
 
-**2. Teach a predictive mental model.**  
-“Explain the execution model” is particularly important. Make the requirement stronger: after a section, you should be able to predict what a small example will do—and explain why. Cover where execution happens, how state is represented, ordering, scope, dependencies, failure, and retries, wherever applicable.
+Interview → save the learner brief → establish an outline → research → write → verify → review.
 
-For Ansible, for example, “this describes the desired state” is insufficient unless you also understand the sequence of tasks, which machine executes what, and what happens after a partial failure.
+For an existing tutorial, read its brief and content first. Reuse established preferences and ask only about material gaps or changed requirements.
 
-**3. Make design decisions explicit.**  
-A tutorial should distinguish:
+### 1. Interview and agree the format
 
-| Kind of decision | What you need to learn |
-|---|---|
-| Mechanical detail | Something you can usually delegate |
-| Established convention | Something the agent should normally follow |
-| Architectural choice | Something you need to discuss and approve |
-| Context-dependent tradeoff | Something requiring evidence about your system |
+Use the request and available project context before asking questions. Ask a small batch of focused questions whose answers materially change scope, depth, examples, or presentation. Establish:
 
-For consequential choices, show alternatives and explain what circumstances favour each. Avoid presenting one worked example as the universally correct architecture.
+- The subject and intended work: what the learner wants to build, maintain, migrate, or diagnose, and whether there is an existing system to understand.
+- Relevant experience, unfamiliar concepts, and useful comparisons with tools they already know. Discover this rather than assuming a particular background.
+- The decisions they want to retain and the work they expect to delegate to an agent.
+- Constraints that affect the teaching: versions, environment, scale, security or operational needs, available study time, desired depth, and reading or exercise preferences.
+- Concrete outcomes: what they should be able to explain, decide, review, and verify afterwards.
 
-**4. Teach verification as a first-class activity.**  
-How do you establish that the generated implementation is correct? Cover what you can inspect, what you can test, what a dry run actually establishes, and what still requires observation in a realistic environment.
+Stop the interview when you can choose the scope, progression, representative example, and format. Follow up only on gaps that would materially alter those choices. State reasonable assumptions for minor unknowns; do not prolong the interview to collect every possible preference.
 
-Include cases where an implementation runs successfully but is still wrong: it changes the wrong thing, hides drift, exposes secrets, or cannot safely be run again. **Successful execution is evidence, not a complete acceptance criterion.**
+At the end of the interview, recommend Markdown or LaTeX and explain the tradeoff for this tutorial. Prefer Markdown for repository reading, easy revision, and code-heavy material; consider LaTeX when mathematical notation, typesetting, cross-references, or a print-oriented PDF materially improve the result. Make a reasoned choice rather than treating either format as mandatory.
 
-**5. Include how to interrogate an agent’s proposal.**  
-Each substantial topic should give you useful review questions, the evidence a good answer should contain, and warning signs in a weak answer. For example:
+Present the recommendation with a concise summary of the agreed scope and **ask the learner to confirm the format**. Wait for that confirmation before generating the tutorial. An explicit format choice already supplied by the learner satisfies this requirement; acknowledge it without asking again.
 
-- What assumptions does this design make about the existing system?
-- What happens if execution stops halfway through?
-- What happens on the second run?
-- How would we detect that the result is wrong?
-- Which parts depend on the installed version?
+### 2. Save the brief and establish the outline
 
-This should teach substantive scrutiny, rather than stock prompts such as “check your work.”
+Persist a concise learner brief containing the goals, prior knowledge, intended work, retained decisions, constraints, target versions, agreed format, and any assumptions or open questions. Personal details and subject-specific experience belong in this brief, not in the reusable skill.
 
-**6. Cover diagnosis and recovery alongside construction.**  
-Show characteristic symptoms, the underlying causes, and how to distinguish competing explanations. Teach which logs, outputs, or state to inspect before accepting a proposed fix. Include recovery from partial completion and the limits of rollback.
+Organise the outline around capabilities and decisions. Use this progression as a guide:
 
-That matters when collaborating with an agent: you need to recognise when it is investigating a failure and when it is repeatedly modifying code without a supported diagnosis.
+1. Fundamentals and a predictive mental model.
+2. Routine work with a small, coherent example.
+3. Design and maintenance as the system grows.
+4. Diagnosis, partial failure, and recovery.
+5. Advanced topics relevant to the learner's intended work.
 
-**7. Show the transition from a small example to a maintained system.**  
-Don’t merely follow a toy example with a large directory tree. Explain the pressures that justify adding structure: multiple environments, ownership boundaries, reuse, secrets, testing, dependencies, and operational constraints.
+Introduce verification and failure behaviour throughout, even when they also deserve dedicated chapters. Make specialised features optional branches with a reason to read them and clear prerequisites.
 
-Also cover how to modify an existing system. Much of your real work will involve understanding inherited conventions and making bounded changes, rather than starting from an empty repository.
+For each substantial chapter, identify the learning outcome and answer: **“What can I now judge that I could not judge before?”** Map the outline to the brief so that essential outcomes are covered and irrelevant feature tours are omitted. Save the outline with the tutorial artifacts; do not require a separate approval unless the learner requests it or a material scope question remains.
 
-**8. Identify plausible mistakes an LLM might produce.**  
-Alongside ordinary antipatterns, ask for examples of implementations that look convincing but contain faulty assumptions, obsolete interfaces, unnecessary abstraction, or inappropriate defaults. These should be grounded in the tool’s actual behaviour, with explanations and verification methods—not speculative claims about what models “always” do.
+### 3. Research authoritative behaviour
 
-**9. Use exercises that match your role.**  
-Prefer exercises such as:
+Establish the version and environment the tutorial targets. Use official documentation, release notes, specifications, and maintained upstream examples as primary sources. Verify version-sensitive interfaces, defaults, execution semantics, limitations, and deprecations rather than relying on remembered behaviour.
 
-- Predict the behaviour of a short example.
-- Review a proposed change and identify its risks.
-- Choose between two designs under stated constraints.
-- Diagnose a failure from its output.
-- Write acceptance criteria for an agent’s implementation.
+Research the consequential claims and examples in the outline before drafting; return to sources as new questions arise. Link sources near the claims they support and record the target version and research date. Distinguish documented guarantees, conventions, and your own recommendations.
 
-Writing small amounts of code can still be useful, but it should serve understanding rather than become the default measure of progress.
+If browsing or the relevant environment is unavailable, state what could not be verified, use available local or supplied authoritative material, and label remaining uncertainty. Do not claim current behaviour, tested examples, or source verification without evidence. Ask for missing material only when it is necessary to teach a core outcome reliably; otherwise bound the scope and explain the limitation.
 
-**10. Adapt to your knowledge and intended work.**  
-The skill should establish what you already understand, what you intend to build or maintain, and what decisions you expect to retain. It should use familiar concepts as bridges while explicitly identifying where analogies break down.
+### 4. Write for technical judgement
 
-For you, an Ansible tutorial could build on SaltStack and your deployment experience. It should not spend pages explaining why configuration management exists, but it should investigate which Salt assumptions transfer poorly.
+Build a coherent explanation from fundamentals to realistic work. Use familiar concepts as bridges, explicitly identifying where analogies stop being accurate. Introduce terms before relying on them, and give enough causal explanation for the learner to predict behaviour.
 
-I would also qualify **“fundamentals through advanced.”** That can encourage an encyclopaedic march through features. A better progression is *fundamentals → routine work → system design → failure and recovery → advanced topics relevant to your use*. Put specialised features in optional branches, with clear reasons to read them.
+Cover the following where applicable to the subject and learner's goals:
 
-The guiding instruction could be:
+- **Purpose and boundaries.** Explain the problem the tool solves, when it is a good fit or unnecessary, what it cannot guarantee, and where another tool should own part of the problem.
+- **Execution and state.** Explain where execution occurs, how state is represented, ordering, scope, dependencies, failure propagation, retries, and repeat execution. Walk through short examples so the learner can predict results, including partial completion and a second run.
+- **Design decisions.** Distinguish mechanical details that can usually be delegated, established conventions an agent should normally follow, architectural decisions the learner should discuss and approve, and context-dependent tradeoffs requiring evidence. For consequential choices, compare alternatives and the circumstances favouring each.
+- **Patterns and growth.** Explain idiomatic solutions and the pressures that justify more structure: environments, ownership, reuse, secrets, dependencies, testing, and operational constraints. Show how a small example evolves and why each added layer is needed. Include reading inherited conventions and making bounded changes to an existing system.
+- **Antipatterns and plausible generated mistakes.** Show convincing-looking implementations with faulty assumptions, obsolete interfaces, unnecessary abstraction, or inappropriate defaults. Ground each problem in actual tool behaviour and show how to detect and correct it. Avoid unsupported claims about what models always do.
+- **Verification.** Explain what inspection, automated tests, dry runs, and realistic execution each establish and what they leave unproven. Include successful runs that still produce an unacceptable result, such as changing the wrong target, hiding drift, exposing secrets, or failing on repetition. Successful execution is evidence, not a complete acceptance criterion.
+- **Diagnosis and recovery.** Connect symptoms to possible causes and evidence that distinguishes them. Identify logs, outputs, or state to inspect before changing code. Cover recovery from partial completion and rollback limits; demonstrate investigation rather than repeated unsupported edits.
 
-> Optimise the tutorial for the learner’s ability to explain behaviour, make design decisions, specify work, review generated implementations, and verify outcomes. Use code to make those abilities concrete. Do not equate completeness with exhaustive feature coverage, or competence with memorising syntax.
+Use short, realistic code samples with the relevant context, assumptions, expected behaviour, and explanation of why they work. Prefer a running example when it helps connect concepts. Label excerpts, pseudocode, and untested samples clearly; provide required files and commands when presenting an example as runnable. Do not require extensive typing to demonstrate understanding.
 
-And one particularly useful recurring device would be: **“What can I now judge that I could not judge before?”** Each chapter should have a concrete answer.
+For each substantial topic, include useful questions the learner can ask an agent, the evidence a good answer should contain, and warning signs in a weak answer. Tie these to the topic's actual behaviour and tradeoffs. For example, a question about interrupted execution should lead to an explanation of intermediate state, a way to inspect it, and a supported recovery strategy.
 
----
+Use exercises that match the learner's role: predict a result, review a proposed change, choose between designs under stated constraints, diagnose output, or write acceptance criteria. Provide worked answers or reasoning separately so the learner can attempt the exercise first. Any code-writing exercise should serve understanding rather than syntax fluency.
 
-Some further notes from chatgpt:
+### 5. Package and verify
 
-Interview → save the brief → establish an outline → research → write → verify → review.
+Keep **one root-level entry per tutorial**:
 
-A few details deserve particular care:
-- Give the interview a stopping condition. Ask questions whose answers materially change scope, depth, examples, or presentation. Avoid an indefinite requirements interview.
-- Separate personalisation from the reusable skill. Your SaltStack experience belongs in the learner brief; the instruction to discover relevant prior knowledge belongs in the skill.
-- Require authoritative, version-specific research. Explain how to handle unavailable browsing and uncertainty.
-- Define verification by output format. Check examples where feasible; compile LaTeX; check references and internal links. Report which checks actually ran.
-- Review the teaching as well as the code. A technically valid example can still teach the wrong mental model or omit the consequential tradeoff.
-- Preserve explanations. “I won’t write much code” must not become an excuse to substitute checklists and management advice for technical understanding.
+- A standalone Markdown tutorial may be a single root-level `.md` file. Embed the learner brief and outline in that file, for example in concise appendices, so they do not create extra root entries.
+- If Markdown needs supporting files, put the tutorial, brief, outline, examples, and assets in one subdirectory.
+- For LaTeX, always create a subdirectory containing the source, supporting files, learner brief, outline, a Makefile, and the compiled PDF. Provide a working `make` target that builds the PDF and document the required toolchain. Keep the PDF version-controlled alongside its source and include it whenever the tutorial is committed.
 
----
+Choose names that make the subject clear. Keep generated intermediates out of version control while retaining the required PDF. Do not place a shared top-level example or asset beside a standalone tutorial if that would give the tutorial multiple root entries.
 
-I add:
+Verify according to the deliverable:
 
-  * Decide yourself if there is an advantage of using LaTeX vs markdown for the tutorial.
-  * Either way, present your reasoned opinion and ask me at the end of the interview to confirm that I agree.
-  * If you decide on LaTeX, create the tutorial in a subdir and include a Makefile that compiles to pdf.  The pdf should commit with the tutorial.
-  * If the markdown is stand-alone, it doesn't need a subdir, but if it contains supporting files, it should get a subdir.
-  * The intent is one root-level entry per tutorial.
+- Check technical claims against the researched sources and target version. Execute runnable examples where feasible in an appropriate isolated environment; compare observed behaviour with the explanation, including failure or repeat-run behaviour when it is central to the lesson. Do not execute examples against live systems merely to validate the prose.
+- For Markdown, check rendering-sensitive syntax, code fences, tables, internal links, and supporting file references with available tools.
+- For LaTeX, build through the Makefile, resolve errors and broken references, and inspect the PDF for readability, clipped code, and layout problems. Rebuild after source changes so the committed PDF matches the source.
+- Check citations and internal cross-references, and ensure each supporting artifact is reachable from the tutorial.
+
+Report which checks actually ran, their results, and any remaining limits. If a required build or check cannot run, identify the missing prerequisite and leave the deliverable explicitly incomplete rather than claiming verification.
+
+### 6. Review the teaching and deliver
+
+Review the finished tutorial against the learner brief as well as technical correctness. Revise any chapter that:
+
+- Assumes unexplained prerequisites or teaches a misleading mental model.
+- Provides code without explaining the consequential behaviour or tradeoff.
+- Treats one example architecture as universally correct.
+- Gives review questions without showing what adequate evidence looks like.
+- Adds complexity without explaining the pressure that justifies it.
+- Leaves the learner unable to predict behaviour, assess a proposal, or verify an outcome promised in the outline.
+
+Ensure the progression is coherent, optional advanced material is clearly signposted, and exercises have usable reasoning. Deliver the tutorial with its artifact paths, target version, completed verification, and material limitations. Keep the final handoff concise; the tutorial itself carries the teaching.
