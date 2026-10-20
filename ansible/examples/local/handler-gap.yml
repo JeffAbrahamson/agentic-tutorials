@@ -1,0 +1,42 @@
+---
+- name: Model disk state diverging from applied state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    lab_root: "{{ playbook_dir }}/.state/handler-gap"
+    lab_message: r2
+    lab_fail: true
+    lab_apply: false
+  tasks:
+    - name: Create the private exercise directory
+      ansible.builtin.file:
+        path: "{{ lab_root }}"
+        state: directory
+        mode: '0700'
+
+    - name: Install the desired configuration
+      ansible.builtin.copy:
+        content: "{{ lab_message }}\n"
+        dest: "{{ lab_root }}/disk.txt"
+        mode: '0600'
+      notify: Apply configuration
+
+    - name: Simulate a later failure
+      ansible.builtin.fail:
+        msg: Deliberate failure after disk changed, before handler ran.
+      when: lab_fail
+
+    - name: Explicitly apply inspected configuration during recovery
+      ansible.builtin.copy:
+        content: "{{ lab_message }}\n"
+        dest: "{{ lab_root }}/applied.txt"
+        mode: '0600'
+      when: lab_apply
+
+  handlers:
+    - name: Apply configuration
+      ansible.builtin.copy:
+        content: "{{ lab_message }}\n"
+        dest: "{{ lab_root }}/applied.txt"
+        mode: '0600'

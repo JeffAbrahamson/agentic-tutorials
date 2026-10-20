@@ -1,0 +1,42 @@
+---
+- name: Observe convergence without root or remote machines
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    lab_root: "{{ playbook_dir }}/.state/converge"
+    lab_message: r1
+  tasks:
+    - name: Create the private exercise directory
+      ansible.builtin.file:
+        path: "{{ lab_root }}"
+        state: directory
+        mode: '0700'
+
+    - name: Write the desired message
+      ansible.builtin.copy:
+        content: "{{ lab_message }}\n"
+        dest: "{{ lab_root }}/message.txt"
+        mode: '0600'
+      notify: Record application
+
+    - name: Apply pending changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read actual file content
+      ansible.builtin.slurp:
+        src: "{{ lab_root }}/message.txt"
+      register: lab_file
+      when: not ansible_check_mode
+
+    - name: Assert actual content
+      ansible.builtin.assert:
+        that: lab_file.content | b64decode == lab_message ~ '\n'
+      when: not ansible_check_mode
+
+  handlers:
+    - name: Record application
+      ansible.builtin.copy:
+        content: "{{ lab_message }}\n"
+        dest: "{{ lab_root }}/applied.txt"
+        mode: '0600'

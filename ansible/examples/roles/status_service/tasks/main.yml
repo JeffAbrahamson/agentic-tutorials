@@ -1,0 +1,33 @@
+---
+- name: Reject unsafe template inputs
+  ansible.builtin.assert:
+    that:
+      - status_port is integer
+      - status_port >= 1024 and status_port <= 65535
+      - status_release is string
+      - status_release is match('^[A-Za-z0-9_-]+$')
+      - inventory_hostname is match('^[A-Za-z0-9_.-]+$')
+
+- name: Install nginx without package-triggered service startup
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    policy_rc_d: 101
+
+- name: Render and validate the complete lab nginx configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+    validate: /usr/sbin/nginx -t -c %s
+  notify: Reload status nginx
+
+- name: Keep nginx running and enabled at boot
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: started
+    enabled: true

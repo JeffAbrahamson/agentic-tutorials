@@ -1,0 +1,3 @@
+.build/
+examples/.venv/
+examples/local/.state/
