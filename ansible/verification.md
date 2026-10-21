@@ -42,7 +42,7 @@ Three corrected claims were checked against the pinned 2.21.5 engine, without co
 
 ## Document checks
 
-`make -C ansible` built the final PDF successfully using Pandoc and XeLaTeX: 44 pages. `pdffonts` confirmed embedded Latin Modern Roman (12-point body), Latin Modern Mono and Latin Modern Math. The PDF uses 160 × 230 mm pages, selectable text, linked contents and wrapping code. Bounding-box checks found no text outside the body margins plus a 6-point tolerance. Visual inspection covered the page layouts, code, tables, headings and contents.
+`make -C ansible` built the final PDF successfully using Pandoc and XeLaTeX: 44 pages. `pdffonts` confirmed embedded Latin Modern Roman (12-point body), Latin Modern Mono and Latin Modern Math. The PDF uses 160 × 230 mm pages, selectable text, linked contents and wrapping code. Inline code breaks only at separators, through `code-breaks.lua`; the extracted text, ignoring whitespace, page numbers and line-end hyphens, matched the previous build that allowed breaks anywhere, so the filter's escaping changed no characters. Bounding-box checks found no text outside the body margins plus a 6-point tolerance. Visual inspection covered the page layouts, code, tables, headings and contents.
 
 Markdown was rendered with Pandoc to HTML and its document tree inspected. Code fences are balanced, supporting-file links resolve, and the five complete remote-play/role code blocks match their supplied files exactly. Tables and heading progression were inspected. `git diff --check HEAD` passed.
 

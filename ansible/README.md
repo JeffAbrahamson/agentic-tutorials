@@ -6,7 +6,7 @@ The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are
 
 ## Build the PDF
 
-Required tools: GNU Make, Pandoc, XeLaTeX, and the Latin Modern Roman and Latin Modern Mono fonts. The TeX installation needs the packages used by Pandoc's default LaTeX template, plus `fvextra`, `microtype`, `ragged2e`, `seqsplit`, `etoolbox` and `needspace`. On Debian/Ubuntu, the usual packages are `make`, `pandoc`, `texlive-xetex`, `texlive-latex-extra`, `texlive-fonts-recommended` and `fonts-lmodern`. No network access is required once the toolchain is installed.
+Required tools: GNU Make, Pandoc, XeLaTeX, and the Latin Modern Roman and Latin Modern Mono fonts. The TeX installation needs the packages used by Pandoc's default LaTeX template, plus `fvextra`, `microtype`, `ragged2e`, `etoolbox` and `needspace`. On Debian/Ubuntu, the usual packages are `make`, `pandoc`, `texlive-xetex`, `texlive-latex-extra`, `texlive-fonts-recommended` and `fonts-lmodern`. No network access is required once the toolchain is installed.
 
 From the repository root:
 
@@ -14,7 +14,7 @@ From the repository root:
 make -C ansible
 ```
 
-This produces `ansible/ansible.pdf`. Its 160 × 230 mm single-column pages use 12-point Latin Modern Roman body text, Latin Modern Mono for code, a linked contents page, selectable text and wrapping code. The PDF is retained alongside its source; temporary files live in ignored `.build/`. Editing the source and running Make rebuilds the deliverable. The PDF uses Markdown source, rather than a separately maintained LaTeX document; [pdf-header.tex](pdf-header.tex) supplies small typesetting adjustments.
+This produces `ansible/ansible.pdf`. Its 160 × 230 mm single-column pages use 12-point Latin Modern Roman body text, Latin Modern Mono for code, a linked contents page, selectable text and wrapping code. The PDF is retained alongside its source; temporary files live in ignored `.build/`. Editing the source and running Make rebuilds the deliverable. The PDF uses Markdown source, rather than a separately maintained LaTeX document; [pdf-header.tex](pdf-header.tex) supplies small typesetting adjustments, and [code-breaks.lua](code-breaks.lua) lets inline code break only at separators such as `/`, `.` and `_`, never mid-word.
 
 ## Examples
 

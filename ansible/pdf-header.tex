@@ -2,9 +2,6 @@
 \usepackage{microtype}
 \usepackage{ragged2e}
 \AtBeginDocument{\RaggedRight\sloppy}
-\usepackage{seqsplit}
-\let\OriginalTexttt\texttt
-\renewcommand{\texttt}[1]{\OriginalTexttt{\seqsplit{#1}}}
 \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere,fontsize=\small}
 \setlength{\emergencystretch}{2em}
 \usepackage{etoolbox}
