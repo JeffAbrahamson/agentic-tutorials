@@ -1,0 +1,50 @@
+{
+  "users": [
+    {
+      "name": "admin",
+      "password_hash": "gIMawPfYIyLWVT4avY5Uh0C50Uh1KxGeDBGwlBYglC4NqlL0",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    },
+    {
+      "name": "app",
+      "password_hash": "CdUIIMA6el9ZM8QLWOAvITEKOFpooVhRbrNJGn6yb/JvQi+E",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    }
+  ],
+  "vhosts": [{"name": "jobs"}],
+  "permissions": [
+    {"user": "admin", "vhost": "jobs", "configure": ".*", "write": ".*", "read": ".*"},
+    {"user": "app", "vhost": "jobs", "configure": "^$", "write": "^jobs$", "read": "^jobs\\.work$"}
+  ],
+  "exchanges": [
+    {"name": "jobs", "vhost": "jobs", "type": "direct", "durable": true,
+     "auto_delete": false, "internal": false, "arguments": {}},
+    {"name": "jobs.dlx", "vhost": "jobs", "type": "fanout", "durable": true,
+     "auto_delete": false, "internal": false, "arguments": {}}
+  ],
+  "queues": [
+    {"name": "jobs.work", "vhost": "jobs", "durable": true, "auto_delete": false,
+     "arguments": {"x-queue-type": "quorum"}},
+    {"name": "jobs.dead", "vhost": "jobs", "durable": true, "auto_delete": false,
+     "arguments": {"x-queue-type": "quorum"}}
+  ],
+  "bindings": [
+    {"source": "jobs", "vhost": "jobs", "destination": "jobs.work",
+     "destination_type": "queue", "routing_key": "work", "arguments": {}},
+    {"source": "jobs.dlx", "vhost": "jobs", "destination": "jobs.dead",
+     "destination_type": "queue", "routing_key": "", "arguments": {}}
+  ],
+  "policies": [
+    {"name": "work-failures", "vhost": "jobs", "pattern": "^jobs\\.work$",
+     "apply-to": "quorum_queues", "priority": 0,
+     "definition": {"dead-letter-exchange": "jobs.dlx",
+                    "dead-letter-strategy": "at-least-once",
+                    "overflow": "reject-publish", "max-length": 10000,
+                    "delivery-limit": 5}},
+    {"name": "dead-letters", "vhost": "jobs", "pattern": "^jobs\\.dead$",
+     "apply-to": "quorum_queues", "priority": 0,
+     "definition": {"delivery-limit": -1}}
+  ]
+}

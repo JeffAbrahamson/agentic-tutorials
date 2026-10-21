@@ -1,0 +1,5 @@
+.build/
+examples/.venv/
+examples/ledger.sqlite
+examples/nack.log
+__pycache__/

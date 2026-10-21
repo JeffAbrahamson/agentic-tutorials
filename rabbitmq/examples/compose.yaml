@@ -1,0 +1,23 @@
+# Single-node lab broker. Ports are published on loopback only.
+name: rabbitmq-lab
+services:
+  rabbit:
+    image: rabbitmq:4.4.0-management
+    hostname: rabbit
+    # Run as the image's rabbitmq user, so `docker compose exec` and the
+    # healthcheck cannot create /var/lib/rabbitmq/.erlang.cookie as root.
+    user: "999:999"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    ports:
+      - "127.0.0.1:5672:5672"     # AMQP 0-9-1
+      - "127.0.0.1:15672:15672"   # management UI and HTTP API
+    volumes:
+      - ./broker/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./broker/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - data:/var/lib/rabbitmq
+volumes:
+  data:

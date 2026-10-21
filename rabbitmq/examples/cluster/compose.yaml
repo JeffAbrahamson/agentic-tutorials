@@ -1,0 +1,43 @@
+# Three-node lab cluster. Each node's AMQP port is published on loopback:
+# rabbit1 -> 5673, rabbit2 -> 5674, rabbit3 -> 5675.
+name: rabbitmq-cluster-lab
+x-node: &node
+  image: rabbitmq:4.4.0-management
+  user: "999:999"
+  environment:
+    # Lab only: every node and its CLI tools must share one cookie.
+    RABBITMQ_ERLANG_COOKIE: lab-only-cluster-cookie
+  healthcheck:
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+    interval: 5s
+    timeout: 10s
+    retries: 30
+services:
+  rabbit1:
+    <<: *node
+    hostname: rabbit1
+    ports: ["127.0.0.1:5673:5672", "127.0.0.1:15673:15672"]
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ../broker/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - data1:/var/lib/rabbitmq
+  rabbit2:
+    <<: *node
+    hostname: rabbit2
+    ports: ["127.0.0.1:5674:5672"]
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ../broker/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - data2:/var/lib/rabbitmq
+  rabbit3:
+    <<: *node
+    hostname: rabbit3
+    ports: ["127.0.0.1:5675:5672"]
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ../broker/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - data3:/var/lib/rabbitmq
+volumes:
+  data1:
+  data2:
+  data3:
