@@ -77,6 +77,8 @@ For each substantial topic, include useful questions the learner can ask an agen
 
 Use exercises that match the learner's role: predict a result, review a proposed change, choose between designs under stated constraints, diagnose output, or write acceptance criteria. Provide worked answers or reasoning separately so the learner can attempt the exercise first. Any code-writing exercise should serve understanding rather than syntax fluency.
 
+Keep the brief, the interview, and this skill out of the tutorial's text. The brief shapes scope, depth, examples, and format; it is not content. Do not address the learner by name, tell them about their own background or plans, mention where or how they will read, or refer to what the interview did or did not establish. State assumptions as properties of the material: "Examples assume Ubuntu 24.04", not "your distribution was not specified". Do not reproduce this skill's wording or process, such as closing answers with what the learner "can now judge" or describing how the tutorial was written or reviewed. Pointers to supporting files and statements of verification limits remain required. Label excerpts and untested samples once and briefly; do not repeat disclaimers that an example is not a recommendation.
+
 ### 5. Package and verify
 
 Keep **one root-level entry per tutorial**:
@@ -94,13 +96,14 @@ Verify according to the deliverable:
 - For LaTeX, build through the Makefile, resolve errors and broken references, and inspect the PDF for readability, clipped code, and layout problems. Rebuild after source changes so the committed PDF matches the source.
 - Check citations and internal cross-references, and ensure each supporting artifact is reachable from the tutorial.
 
-Report which checks actually ran, their results, and any remaining limits. If a required build or check cannot run, identify the missing prerequisite and leave the deliverable explicitly incomplete rather than claiming verification.
+Report which checks actually ran, their results, and any remaining limits. If a required build or check cannot run, identify the missing prerequisite and leave the deliverable explicitly incomplete rather than claiming verification. A verification record kept with the tutorial states what was checked and what it showed; it omits session history such as sandbox workarounds, review rounds, or who approved which change.
 
 ### 6. Review the teaching and deliver
 
 Review the finished tutorial against the learner brief as well as technical correctness. Revise any chapter that:
 
 - Assumes unexplained prerequisites or teaches a misleading mental model.
+- Echoes the brief, the interview, or this skill instead of teaching the subject.
 - Provides code without explaining the consequential behaviour or tradeoff.
 - Treats one example architecture as universally correct.
 - Gives review questions without showing what adequate evidence looks like.
