@@ -1,33 +1,27 @@
 ---
 title: 'Ansible: from one host to a fleet'
-subtitle: 'A working model for an SRE directing and reviewing agent-written automation'
-author: 'Prepared for Jeff'
+subtitle: 'Execution, targeting, rollout and recovery with ansible-core 2.21'
 date: '20 October 2026'
 ---
 
-# Reading on the plane {.unnumbered}
+# Scope and prerequisites {.unnumbered}
 
 This tutorial is about understanding what Ansible will do well enough to
-entrust it with real machines. You already know Linux operations and Python.
-We will build on that experience: processes, files, SSH, exit status and failure
-domains are familiar; Ansible adds its own execution and data model.
+entrust it with real machines. Processes, files, SSH, exit status and failure
+domains are taken as familiar; Ansible adds its own execution and data model.
 
-Your use case spans personal projects and a Jellybooks fleet of roughly 30–50
-hosts. Some services run outside Docker. Terraform is on your near-term roadmap,
-and a later move towards a pod is possible. We will give each tool a clear
-boundary without assuming what that future platform will be.
+The examples scale from one host to a fleet of tens, including services that
+run outside Docker, with Terraform and containers owning adjacent layers.
 
 Allow two to three hours, including the short prediction and review exercises.
 Read chapters 1–7 in order. Chapter 8 helps when adopting an inherited repository;
 chapter 9 is an optional bridge to Terraform and containers. Worked answers are
-collected near the end. You need neither a terminal nor the linked documentation
-to follow the argument. Commands are there to make behaviour precise and to try
-later. Pause at each exercise before reading its answer.
+collected near the end. Commands make behaviour precise. Pause at each
+exercise before reading its answer.
 
 The target is **ansible-core 2.21.5**, with Python 3.12 on the controller. Concrete
 remote examples assume **dedicated Ubuntu 24.04 VMs with systemd**, Python 3 and
-SSH. Your actual host distributions were not specified; Ubuntu is a teaching
-assumption. Package names, service managers and paths need checking elsewhere.
+SSH. Other distributions need package, service, path and interpreter checks.
 Core 2.21 supports controller Python 3.12–3.14 and target Python 3.9–3.14.
 The separate community `ansible` package bundles additional collections; its
 version number is not the Core version. This tutorial needs Core only.
@@ -35,20 +29,18 @@ version number is not the Core version. This tutorial needs Core only.
 [pinned release](https://pypi.org/project/ansible-core/2.21.5/).
 
 The remote example replaces the **whole nginx configuration** on disposable
-status-service hosts. It is a small, deliberately bounded non-Docker service,
-not a recommended Jellybooks deployment. Never point it at an existing web host.
-Its loopback-only endpoint avoids requiring a public listener or firewall change.
+status-service hosts. It is a small, deliberately bounded non-Docker service.
+Never point it at an existing web host. Its loopback-only endpoint avoids
+requiring a public listener or firewall change.
 
-The editable source is `tutorial.md`. The `examples/` directory contains complete
-files. A build guide and recorded verification are in `README.md` and
-`verification.md`. These filenames identify supporting artifacts; all essential
-explanations and remote configuration appear in this PDF.
+The `examples/` directory contains the complete files. A build guide and the
+verification record are in `README.md` and `verification.md`.
 
 # Predict the run {#predict}
 
-## A remote programme, with a state-aware vocabulary
+## A remote program with a state-aware vocabulary
 
-Imagine a Python programme that iterates over machines, connects over SSH,
+Imagine a Python program that iterates over machines, connects over SSH,
 inspects a file or package, and changes it if necessary. Ansible provides the
 machinery for that pattern: selecting targets, obtaining connection details,
 transferring and executing modules, evaluating expressions, handling results and
@@ -235,7 +227,7 @@ groups and variables that made the intended run meaningful. Likewise, a typo
 that selects zero hosts can leave a command doing no useful work. Acceptance
 should require the expected identities and count, not merely a zero exit status.
 
-Separate environment inventories are a useful recommendation at your scale.
+Separate environment inventories are a useful recommendation for a fleet of tens of hosts.
 For example, `inventories/personal`, `inventories/staging` and
 `inventories/production` make selection explicit. They are organisational
 boundaries rather than access controls: shared credentials and a mistaken `-i`
@@ -323,7 +315,7 @@ packaging and reuse boundary, not a scheduler or separately running component.
 Roles do not automatically isolate variables and handlers: variables can enter
 play scope, and handlers share the play's scope. Use distinctive input and
 handler names when composing roles.
-Read its files as a small programme. Here, putting the files in a role also makes
+Read its files as a small program. Here, putting the files in a role also makes
 the later growth discussion concrete; one play with tasks would be reasonable
 for a single small personal host.
 
@@ -380,8 +372,9 @@ not request an upgrade when an adequate installed package already satisfies that
 state. It also does not pin a specific nginx build. A new VM can receive a newer
 repository version than an old one. Decide separately whether your real fleet
 uses package version constraints, a snapshot repository, or an explicit patching
-workflow. Cache refreshes are observable maintenance effects; a fresh second
-run can be quiet while a later refresh legitimately reports change.
+workflow. With a package named, a cache refresh is reported in the result's
+`cache_updated` field, not as `changed`; a later run of this task stays `ok`
+unless the package state itself changes.
 
 Debian-family package scripts can start services during installation, before
 your following task writes configuration. `policy_rc_d: 101` suppresses that
@@ -393,7 +386,7 @@ installation. Our example assumes working apt repositories and target egress.
 
 The template module renders a candidate, validates it on the target, then installs
 it. `%s` is replaced by the temporary candidate filename. The command does not
-run through a shell, so a pipe or `&&` is not a validation programme. This command
+run through a shell, so a pipe or `&&` is not a validation program. This command
 needs a **complete nginx configuration**: a `server` fragment on its own would
 not be a valid main configuration. Quoting `'0644'` preserves the intended mode.
 [Template validation](https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/template_module.html),
@@ -609,7 +602,7 @@ rather than reliance on Python-like truthiness.
 [Conditionals](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_conditionals.html),
 [2.19 templating changes](https://docs.ansible.com/projects/ansible/latest/porting_guides/porting_guide_core_2.19.html).
 
-Use `command` with `argv` when an external programme is necessary and a module
+Use `command` with `argv` when an external program is necessary and a module
 cannot express the operation. `command` does not run through a shell. It cannot
 interpret `|`, redirection or `&&` as shell syntax. `shell` can, but then quoting,
 injection, exit status and repeatability become your responsibility. A
@@ -711,6 +704,10 @@ or binary that an earlier task only predicted installing. A task with
 `check_mode: false` can execute for real even during `--check`. Audit such tasks
 before using a preview as an operational safety boundary.
 
+Check mode also skips a `copy` or `template` task's `validate` command. A predicted template
+change on an existing host says nothing about whether nginx will accept the
+candidate; only a real run reaches `nginx -t`.
+
 `--diff` shows supported before-and-after data. Useful evidence can also be
 sensitive evidence: configuration differences may disclose credentials. Apply
 it selectively and read task-level `diff` and logging policy first.
@@ -729,7 +726,7 @@ Use the following ladder when reviewing a proposed change:
 | Syntax check | Playbook can be parsed in this setup | Correct targets, values and effects |
 | Host/task listing | Selection and much visible structure | All dynamic paths and effects |
 | Lint | Selected rules and suspicious patterns | Functional acceptance |
-| Check/diff | Supported predictions on current state | Fresh-host and activation behaviour |
+| Check/diff | Supported predictions on current state | Candidate validation, fresh-host and activation behaviour |
 | Disposable-host run | Observed behaviour in that environment | Other environments and real traffic |
 | Repeat and drift tests | Convergence and repair for tested changes | Every possible interruption |
 | Client-path acceptance | Tested end-to-end outcome | Untested paths and future conditions |
@@ -755,8 +752,7 @@ ansible-config dump --only-changed
 
 Install the exact Core pin, 2.21.5, from `requirements.txt`. `ansible.cfg` enables
 host-key checking and sets five forks. Inspect your environment for overriding
-configuration. Dependency installation needs internet access; do it before
-travelling if you plan to use a terminal. The reading itself needs none.
+configuration. Dependency installation needs internet access.
 
 Prepare **two dedicated Ubuntu 24.04 VMs**, replace the placeholder addresses,
 adjust the SSH account, establish trusted host keys and verify SSH plus sudo.
@@ -784,8 +780,7 @@ ansible-playbook -i inventories/lab/hosts.yml \
 Omit `--ask-become-pass` when the lab's approved sudo setup does not require a
 password. Repeat the same command immediately. Expect the health assertion to
 run again, but no configuration change or reload when inputs and relevant state
-are unchanged. Apt cache policy means “unchanged” is not a promise about a run
-hours later.
+are unchanged.
 
 Change `status_release` to `r2`, review the diff and run only that host again.
 The response must change. Then run the second lab host. A manual drift test on
@@ -812,7 +807,7 @@ The supplied `local/converge.yml` uses `connection: local`, no become and no
 remote hosts. It writes only `local/.state/converge/` beneath the example
 directory. It creates a private directory, writes `message.txt`, notifies a
 handler that writes `applied.txt`, flushes the handler, then reads and asserts
-the actual message. The meaningful core is:
+the actual message. Its core, excerpted:
 
 ```yaml
 - name: Write the desired message
@@ -823,8 +818,7 @@ the actual message. The meaningful core is:
   notify: Record application
 ```
 
-This excerpt depends on the complete supplied playbook's directory task,
-variables and handler. Run the complete file, not the excerpt:
+Run the complete file:
 
 ```sh
 ansible-playbook -i localhost, local/converge.yml
@@ -852,7 +846,7 @@ repetition, interruption and external request paths as applicable. “Syntax,
 lint and check all passed” is an evidence list, not an explanation of coverage.
 
 **Exercise 5 — acceptance.** A change reports `changed=0` on its second run and
-HTTP 200 from the controller. Write three additional acceptance criteria before
+its health task receives HTTP 200. Write three additional acceptance criteria before
 you would trust it on a Jellybooks service. Make each identify a failure that
 those two observations could miss.
 
@@ -873,7 +867,7 @@ host through configuration, activation and health verification before taking
 another. It is conservative and slow, and still does not drain traffic or make a
 single-instance stateful service safe to restart.
 
-A possible later policy, shown as an excerpt rather than a universal default, is:
+A possible later policy (excerpt) is:
 
 ```yaml
 hosts: web
@@ -884,8 +878,9 @@ any_errors_fatal: true
 It processes one host, then five, then further batches of five. The list is not
 “one canary followed by exactly five hosts and stop”. A named canary run followed
 by a separate reviewed fleet run can be easier to reason about than implicit
-ordering. Inventory order should not be assumed to be the human-written file's
-order. If a specific host must be first, select it explicitly.
+ordering. The default `order: inventory` follows the inventory source, which
+for a dynamic inventory or merged sources may not be an order anyone reviewed.
+If a specific host must be first, select it explicitly.
 [Batch execution](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_strategies.html).
 
 Choosing a batch size requires evidence: redundancy, maximum tolerable loss of
@@ -937,7 +932,7 @@ The nginx fixture implements only configuration, activation and host-local
 verification. It cannot establish spare capacity or drain Jellybooks traffic.
 
 A task with `delegate_to: localhost` runs its action on the controller, useful
-for a load-balancer API the target cannot reach. The loop still represents each
+for a load-balancer API the target cannot reach. The task still runs once per
 selected inventory host; delegation does not automatically make an operation
 once-only or serialise concurrent writes to shared state. `run_once` with
 `serial` runs once **per batch**, which is a poor accidental implementation of a
@@ -1064,9 +1059,9 @@ ansible-playbook -i localhost, local/handler-gap.yml \
 That recovery copies the desired bytes to `applied.txt`. It demonstrates a
 purposeful missing transition, not a recommendation to write a copy command as
 a service reload. The lab is stateful: later reruns see those files. For an
-independent repeat, choose a new private absolute exercise directory using
-`-e '{"lab_root":"/tmp/jeff-handler-gap-2"}'` on **all three commands**. Do not
-accidentally reuse a directory with an existing applied file.
+independent repeat, run `D=$(mktemp -d)` and add `-e lab_root=$D` to **all
+three commands**; a path is a string, so the `key=value` form is safe here. Do
+not accidentally reuse a directory with an existing applied file.
 
 ## Recovery is a new, bounded change
 
@@ -1134,7 +1129,6 @@ provided by that application's role:
   diff: false
 ```
 
-This example intentionally does not invent a production secret or an account.
 `no_log` reduces disclosure through task logging; `diff: false` disables a
 potentially revealing diff. Neither rescues a later debug task that prints the
 same secret or an application that logs its environment. File permissions must
@@ -1163,8 +1157,8 @@ unless overridden appropriately.
 `ansible-core==2.21.5` pins the tutorial's engine, not every dependency forever.
 The example uses no external collection. Once a repository uses community or
 vendor modules, record collection requirements and tested versions as well.
-A collection's own version is separate from Core's. This **illustrative** file
-shows the shape, not a recommendation of a collection or version for Jellybooks:
+A collection's own version is separate from Core's. An illustrative
+requirements file with placeholder names:
 
 ```yaml
 collections:
@@ -1172,7 +1166,6 @@ collections:
     version: '1.2.3'
 ```
 
-Replace placeholders with an actual researched dependency before installation.
 For a real collection requirements file, `ansible-galaxy collection install -r
 requirements.yml` installs its collections. Pinned external roles use their own
 requirements entries and installation workflow. An execution-environment image
@@ -1192,7 +1185,7 @@ then change the engine or dependencies as a separately reviewable step.
 Do not let two operators or CI jobs run mutating plays against the same targets
 without an agreed coordination mechanism. Ordinary Ansible invocations do not
 provide a fleet-wide lock shared across controllers. A CI environment lock or
-other shared change lock can be sufficient at your scale. Record the revision,
+other shared change lock can be sufficient for a fleet of tens of hosts. Record the revision,
 inventory snapshot, invocation and outcome so you can reconstruct a change even
 when a dynamic inventory later changes membership.
 
@@ -1232,7 +1225,7 @@ Plausible generated changes deserve concrete scrutiny:
 
 These are review heuristics, not bans. A shell command can be the right tool for
 a missing module, and accepting an expected error can be deliberate. Require an
-explanation grounded in the external programme's behaviour, rather than a rule
+explanation grounded in the external program's behaviour, rather than a rule
 applied mechanically. In particular, never improve a recap by redefining failure
 until it stops expressing the acceptance condition you care about.
 
@@ -1255,7 +1248,7 @@ not a Terraform or container orchestration tutorial.
 
 ## Establish a single writer for each resource
 
-A useful initial boundary for your roadmap is: Terraform owns the lifecycle of
+A useful initial boundary is: Terraform owns the lifecycle of
 VMs, networks, addresses and related provider resources; Ansible owns agreed
 packages, host configuration and services inside those machines. This is an
 architectural recommendation, not a restriction on what either tool can do.
@@ -1329,9 +1322,9 @@ restart, which support reload and what health establishes after each.
 A future pod-based platform may move service lifecycle and health management to
 a scheduler. If that platform is Kubernetes, for example, the controller
 reconciliation model differs from a periodic Ansible host run. Avoid having two
-systems independently restart, replace or rewrite the same workload. Your
-specific future platform remains unspecified, so the next useful decision is a
-resource ownership map, not a Kubernetes role collection.
+systems independently restart, replace or rewrite the same workload. Whatever
+the platform, the next useful decision is a resource ownership map, not a
+Kubernetes role collection.
 
 **Ask an agent:** “Draw the ownership boundary and explain recovery if Terraform
 succeeds but Ansible fails.” A good answer describes durable infrastructure,
@@ -1358,22 +1351,25 @@ not undo them. Inspect the precise selected host, installed configuration,
 validation result, process state, activation evidence and actual response.
 Then determine whether rerunning repeats only safe operations and whether any
 activation step must be made explicit. If the health failure reflects an
-application regression, a blind retry may only reproduce it.
-
-The distinction you should now be able to judge is whether “retry” describes a
-supported transition from known state, rather than hope that Ansible is atomic.
+application regression, a blind retry may only reproduce it. A retry is sound
+only as a supported transition from known state; Ansible is not atomic.
 
 ## 2. A limit must resolve to the intended inventory identity
 
-Check `--list-hosts` with the exact inventory and invocation. The IP-valued limit
-may match no alias even though the alias's `ansible_host` contains that address.
-Use `lab-status-01` when that is the intended identity, and prove its effective
-connection address. Inline inventory may drop the account, interpreter, groups
-and service variables attached to the real inventory. A zero-target or
-differently configured run is not a successful implementation of the request.
+Against the lab inventory, `--limit 192.0.2.11` matches no host: patterns
+select inventory identities, and that address appears only as the value of
+`lab-status-01`'s `ansible_host`. Ansible stops with “no hosts to target” and a
+nonzero exit. A reported success therefore means some other inventory or
+invocation ran, so ask for the exact command and its `--list-hosts` output.
 
-You can now distinguish a target-selection fix from a shortcut that silently
-changes the execution context.
+An inline `-i '192.0.2.11,'` is the likeliest culprit, and it is worse than it
+looks. That host belongs to no `status` group, so `hosts: status` matches
+nothing: Ansible prints “skipping: no hosts matched” and exits zero having done
+no work. Another inventory in which the address is a member of `status` would
+run, but with whatever account, interpreter and service variables that inventory
+attaches. Use `lab-status-01` when that is the intended identity, and prove its
+effective connection address. A zero-target or differently configured run is
+not a successful implementation of the request.
 
 ## 3. Report and control the right transition
 
@@ -1387,8 +1383,6 @@ reload behaviour and test the resulting live state.
 A running unit and a successful service-management command do not establish the
 served release. Inspect documentation, logs and the actual acceptance response.
 
-You can now judge whether a service action is both necessary and sufficient.
-
 ## 4. Extra variables win here; ordinary CLI flags need care
 
 The JSON extra variable supplies integer 8082, overriding inventory and the role
@@ -1398,8 +1392,6 @@ actual definitions or explicitly use the intended high-priority variable under
 your access policy. Do not fix an unexplained precedence conflict by scattering
 new assignments throughout the play.
 
-You can now judge a value by provenance and type, not just by the nearest YAML.
-
 ## 5. Convergence and a 200 response leave important gaps
 
 Three strong additional criteria might be:
@@ -1407,8 +1399,8 @@ Three strong additional criteria might be:
 1. The exact intended host set is selected, with expected identities and no
    duplicate physical target. This catches success on the wrong machine.
 2. Each affected host serves the expected release or functional result through
-   the real client path after activation. This catches a stale process, cached
-   controller result, broken TLS or routing despite a 200 somewhere else.
+   the real client path after activation. This catches a stale process, a
+   cached response, broken TLS or routing despite a 200 somewhere else.
 3. A disposable fresh host and a deliberately drifted host both reach the
    intended state, with an unchanged repeat run and no unnecessary activation.
    This catches missing bootstrap assumptions and hidden competing writers.
@@ -1428,9 +1420,6 @@ stay changed. Membership and activation states require inspection.
 operation across the entire rollout, nor does it establish idempotence or an
 external lock. A distinct migration phase with a service-specific contract is
 clearer.
-
-You can now judge the maximum scope of an intermediate outcome rather than
-assuming a canary policy limits all failures to one host.
 
 ## 7. Separate missed activation from rejected activation
 
@@ -1460,9 +1449,6 @@ logged and remove subsequent debug output of the value. Protect decryption
 credentials and job-log access. Also examine the application itself: neither
 Vault nor task logging policy prevents it from logging a secret after startup.
 
-You can now judge secret protection along a complete data path rather than from
-the repository format alone.
-
 ## 9. Give the file and lifecycle one owner each
 
 A reasonable contract is: Terraform owns VM/network lifecycle and exports
@@ -1477,11 +1463,10 @@ Before removal, drain the machine through the real traffic-management mechanism,
 verify the service no longer depends on it, handle state and persistent data,
 then allow infrastructure destruction. Establish what happens if drain succeeds
 but destroy fails, or destroy is requested while configuration is incomplete.
-You can now judge a handover by identity, ownership and failure outcomes.
 
-# A field reference for later {#reference}
+# Field reference {#reference}
 
-Use this after the flight when an agent proposes a change. Each question points
+Use this when an agent proposes a change. Each question points
 to behaviour you have already traced; it is not a substitute for understanding
 the affected service.
 
@@ -1508,10 +1493,9 @@ A useful change request is specific about outcomes. For example:
 
 That is more useful than asking an agent to “make an idempotent Ansible role”.
 It states what correctness means while leaving mechanical implementation to the
-agent. Adapt it to actual ownership and availability policy rather than copying
-it unchanged into every task.
+agent.
 
-# Sources, artifacts and verification {#sources}
+# Sources and verification {#sources}
 
 Research date: **20 October 2026**. The executable target is **Core 2.21.5**.
 Official Ansible community documentation URLs under `latest` can change after
@@ -1519,8 +1503,7 @@ this date; the version pin and recorded observations identify what this tutorial
 actually targeted. Module help installed with the pinned engine, for example
 `ansible-doc ansible.builtin.template`, is another useful local reference.
 
-Primary sources are linked beside the claims they support. The main reading
-routes for later reference are:
+The main reading routes for later reference are:
 
 - [Ansible concepts](https://docs.ansible.com/projects/ansible/latest/getting_started/basic_concepts.html),
   [inventory](https://docs.ansible.com/projects/ansible/latest/inventory_guide/intro_inventory.html)
@@ -1535,21 +1518,9 @@ routes for later reference are:
 - [nginx controls](https://nginx.org/en/docs/control.html) and
   [Terraform provisioner guidance](https://developer.hashicorp.com/terraform/language/provisioners).
 
-The source package keeps one tutorial directory. It contains `brief.md` (learner
-context and assumptions), `outline.md` (capabilities mapped to those goals),
-`tutorial.md`, `ansible.pdf`, `Makefile`, `pdf-header.tex`, `README.md`,
-`verification.md` and the complete `examples/` tree. Everything needed to rebuild
-the PDF is in that directory apart from the documented toolchain.
-
-Verification separates executed behaviour from documented behaviour. The local
-convergence and handler-gap exercises were executed with Core 2.21.5 and Python
-3.12. Their repeat, preview and recovery outcomes matched the explanations.
-The remote playbook was syntax-checked and its inventory selection inspected.
-The actual nginx templates were rendered with Ansible; Ubuntu-container checks
-validated the complete configuration, confirmed the exact `r1` response, reloaded
-to `r2`, and rejected an invalid candidate.
-The actual health-query expression also accepted the expected line and rejected
-both a wrong release and a missing final newline in a local HTTP fixture.
+The local exercises were executed with the pinned engine, the nginx
+configuration was tested in a container, and the health check ran against a
+local HTTP fixture; `verification.md` records what ran and what it showed.
 
 **Limits:** the complete SSH/sudo/systemd play was not executed against full
 Ubuntu VMs. Container checks do not establish systemd behaviour, boot enablement,

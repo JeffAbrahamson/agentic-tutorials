@@ -1,8 +1,8 @@
 # Ansible: from one host to a fleet
 
-Read [ansible.pdf](ansible.pdf) on your tablet. It is a substantial 2–3 hour tutorial, including prediction exercises and worked answers, written for an experienced Linux SRE configuring personal hosts and a 30–50 host Jellybooks fleet.
+The tutorial is [ansible.pdf](ansible.pdf): a 2–3 hour read, with prediction exercises and worked answers, covering execution, inventory, roles, verification, fleet rollouts and recovery from partial completion.
 
-The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is Ansible Core 2.21.5; concrete remote examples assume dedicated Ubuntu 24.04 VMs with systemd. The actual fleet's distribution was not specified.
+The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is Ansible Core 2.21.5; concrete remote examples assume dedicated Ubuntu 24.04 VMs with systemd.
 
 ## Build the PDF
 
@@ -18,7 +18,7 @@ This produces `ansible/ansible.pdf`. Its 160 × 230 mm single-column pages use 1
 
 ## Examples
 
-Read the setup and limitations in chapter 5 before executing remote examples. The remote role replaces the **complete nginx configuration** and belongs only on dedicated disposable VMs. Addresses in the supplied inventory are documentation placeholders. Nothing should be run against Jellybooks hosts to validate this tutorial.
+Read the setup and limitations in chapter 5 before executing remote examples. The remote role replaces the **complete nginx configuration** and belongs only on dedicated disposable VMs. Addresses in the supplied inventory are documentation placeholders.
 
 The example entry points and supporting files are:
 
