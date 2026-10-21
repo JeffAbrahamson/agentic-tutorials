@@ -1,0 +1,15 @@
+{{ define "main" }}
+  <header class="hero">
+    <p class="eyebrow">Photo archive</p>
+    <h1>{{ .Title }}</h1>
+    {{ .Content }}
+  </header>
+  {{ with site.GetPage "/albums" }}
+    <section aria-labelledby="recent-albums">
+      <h2 id="recent-albums">Albums in this build</h2>
+      <div class="gallery">
+        {{ range .Pages }}{{ partial "album-card.html" . }}{{ end }}
+      </div>
+    </section>
+  {{ end }}
+{{ end }}

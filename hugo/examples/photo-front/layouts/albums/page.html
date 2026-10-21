@@ -1,0 +1,14 @@
+{{ define "main" }}
+  {{ $album := .Params.album }}
+  <article>
+    <p class="eyebrow">Captured {{ $album.captured }}</p>
+    <h1>{{ .Title }}</h1>
+    <p>{{ .Summary }}</p>
+    {{ partial "remote-picture.html" (dict
+      "cover" $album.cover
+      "sizes" "(min-width: 76rem) 70rem, 92vw"
+      "title" .Title
+    ) }}
+    <p>Tags: {{ delimit $album.tags ", " }}</p>
+  </article>
+{{ end }}

@@ -1,0 +1,22 @@
+baseURL = 'https://lens-vault.example/'
+locale = 'en-GB'
+title = 'Lens Vault'
+disableKinds = ['taxonomy', 'term']
+
+[build]
+  [build.cleanDestinationDir]
+    enable = true
+
+[mediaTypes]
+  [mediaTypes.'application/json']
+    suffixes = ['json']
+
+[outputFormats]
+  [outputFormats.Catalog]
+    mediaType = 'application/json'
+    baseName = 'catalog'
+    isPlainText = true
+    notAlternative = true
+
+[outputs]
+  home = ['HTML', 'Catalog']

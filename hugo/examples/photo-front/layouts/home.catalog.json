@@ -1,0 +1,12 @@
+{{- $albums := slice -}}
+{{- with site.GetPage "/albums" -}}
+  {{- range .Pages -}}
+    {{- $albums = $albums | append (dict
+      "title" .Title
+      "url" .RelPermalink
+      "summary" .Summary
+      "tags" .Params.album.tags
+    ) -}}
+  {{- end -}}
+{{- end -}}
+{{- dict "generated" now "albums" $albums | jsonify -}}

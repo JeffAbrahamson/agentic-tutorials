@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="{{ site.Language.Locale }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if not .IsHome }}{{ .Title }} · {{ end }}{{ site.Title }}</title>
+    {{ partial "head/css.html" . }}
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="{{ site.Home.RelPermalink }}">{{ site.Title }}</a>
+      <span>{{ site.Params.strapline }}</span>
+      <nav aria-label="Primary">
+        <a href="{{ site.Home.RelPermalink }}campaigns/">Campaigns</a>
+        <a href="{{ site.Home.RelPermalink }}issues/">Issues</a>
+        <a href="{{ site.Home.RelPermalink }}places/">Places</a>
+      </nav>
+    </header>
+    <main>{{ block "main" . }}{{ end }}</main>
+    <footer>Teaching fixture: Green Horizon is fictional.</footer>
+  </body>
+</html>

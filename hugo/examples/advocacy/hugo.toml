@@ -1,0 +1,15 @@
+baseURL = 'https://green-horizon.example/'
+locale = 'en-GB'
+title = 'Green Horizon'
+theme = 'field-notes'
+
+[params]
+  strapline = 'Evidence, local knowledge, and practical action'
+
+[taxonomies]
+  issue = 'issues'
+  place = 'places'
+
+[build]
+  [build.cleanDestinationDir]
+    enable = true

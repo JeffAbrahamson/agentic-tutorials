@@ -1,0 +1,7 @@
+{{ define "main" }}
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+  <div class="gallery">
+    {{ range .Pages }}{{ partial "album-card.html" . }}{{ end }}
+  </div>
+{{ end }}

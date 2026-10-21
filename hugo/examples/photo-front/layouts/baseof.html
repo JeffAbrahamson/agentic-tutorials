@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="{{ site.Language.Locale }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if not .IsHome }}{{ .Title }} · {{ end }}{{ site.Title }}</title>
+    {{ partial "head/css.html" . }}
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="{{ site.Home.RelPermalink }}">{{ site.Title }}</a>
+      <nav aria-label="Primary"><a href="{{ site.Home.RelPermalink }}albums/">Albums</a></nav>
+    </header>
+    <main>{{ block "main" . }}{{ end }}</main>
+    <footer>Static catalogue generated from a versioned API snapshot.</footer>
+  </body>
+</html>

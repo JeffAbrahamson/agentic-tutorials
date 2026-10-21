@@ -1,0 +1,14 @@
+{{ define "main" }}
+  <header>
+    <p class="eyebrow">Section</p>
+    <h1>{{ .Title }}</h1>
+    {{ .Content }}
+  </header>
+  <div class="cards">
+    {{ range .Pages }}
+      {{ partial "campaign-card.html" . }}
+    {{ else }}
+      <p>No published entries.</p>
+    {{ end }}
+  </div>
+{{ end }}

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "marsh-at-dawn",
+    "title": "Marsh at dawn",
+    "summary": "Field photographs from the autumn bird survey.",
+    "captured": "2026-10-02",
+    "visibility": "public",
+    "tags": ["wetland", "fieldwork"],
+    "cover": {
+      "alt": "Mist above reeds with a pale orange horizon",
+      "width": 1600,
+      "height": 1067,
+      "renditions": [
+        {"width": 640, "url": "https://media.example/abc/640.webp"},
+        {"width": 1280, "url": "https://media.example/abc/1280.webp"}
+      ]
+    }
+  },
+  {
+    "id": "urban-canopy",
+    "title": "The urban canopy",
+    "summary": "A repeat-photography survey of shade across the city.",
+    "captured": "2026-08-19",
+    "visibility": "public",
+    "tags": ["trees", "heat"],
+    "cover": {
+      "alt": "Plane trees shading a paved square",
+      "width": 1800,
+      "height": 1200,
+      "renditions": [
+        {"width": 640, "url": "https://media.example/def/640.webp"},
+        {"width": 1280, "url": "https://media.example/def/1280.webp"}
+      ]
+    }
+  }
+]

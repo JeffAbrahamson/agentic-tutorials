@@ -1,0 +1,10 @@
+{{ $album := .Params.album }}
+<article class="card">
+  {{ partial "remote-picture.html" (dict
+    "cover" $album.cover
+    "sizes" "(min-width: 60rem) 30vw, (min-width: 38rem) 45vw, 92vw"
+    "title" .Title
+  ) }}
+  <h3><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h3>
+  <p>{{ .Summary }}</p>
+</article>

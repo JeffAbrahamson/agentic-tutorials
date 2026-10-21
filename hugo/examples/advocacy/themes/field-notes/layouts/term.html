@@ -1,0 +1,7 @@
+{{ define "main" }}
+  <p class="eyebrow">{{ .Data.Singular | title }}</p>
+  <h1>{{ .Title }}</h1>
+  <div class="cards">
+    {{ range .Pages }}{{ partial "campaign-card.html" . }}{{ end }}
+  </div>
+{{ end }}

@@ -1,0 +1,9 @@
+{{ define "main" }}
+  <h1>{{ .Title }}</h1>
+  <p>This vocabulary is generated from campaign front matter.</p>
+  <ul>
+    {{ range .Pages }}
+      <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a> ({{ .Pages.Len }})</li>
+    {{ end }}
+  </ul>
+{{ end }}

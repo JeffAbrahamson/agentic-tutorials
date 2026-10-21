@@ -1,0 +1,17 @@
+{{ $catalog := slice }}
+{{ with resources.Get "api/albums.json" }}
+  {{ $catalog = . | transform.Unmarshal }}
+{{ else }}
+  {{ errorf "Missing assets/api/albums.json" }}
+{{ end }}
+
+{{ range $catalog }}
+  {{ $page := dict
+    "kind" "page"
+    "path" .id
+    "title" .title
+    "summary" .summary
+    "params" (dict "album" .)
+  }}
+  {{ $.AddPage $page }}
+{{ end }}

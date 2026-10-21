@@ -1,0 +1,15 @@
+{{ define "main" }}
+  <section class="hero">
+    <p class="eyebrow">Environmental advocacy</p>
+    <h1>{{ .Title }}</h1>
+    <div class="intro">{{ .Content }}</div>
+  </section>
+  <section aria-labelledby="active-campaigns">
+    <h2 id="active-campaigns">Current campaigns</h2>
+    <div class="cards">
+      {{ range where site.RegularPages "Section" "campaigns" }}
+        {{ partial "campaign-card.html" . }}
+      {{ end }}
+    </div>
+  </section>
+{{ end }}

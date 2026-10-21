@@ -1,0 +1,6 @@
+<article class="card">
+  <p class="eyebrow">{{ .Params.status | default "proposed" }}</p>
+  <h3><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h3>
+  <p>{{ .Summary }}</p>
+  <a href="{{ .RelPermalink }}">{{ site.Params.actionLabel }}</a>
+</article>

@@ -1,0 +1,35 @@
+{{ define "main" }}
+  <article>
+    <p class="eyebrow">{{ .Section | singularize }}</p>
+    <h1>{{ .Title }}</h1>
+    <p class="status">Status: {{ .Params.status | default "not set" }}</p>
+    {{ .Content }}
+
+    {{ with .Resources.Get "evidence.json" }}
+      {{ $evidence := . | transform.Unmarshal }}
+      {{ if not $evidence }}
+        {{ errorf "Campaign %q has an empty evidence register" $.File.Path }}
+      {{ end }}
+      <section aria-labelledby="evidence">
+        <h2 id="evidence">Evidence register</h2>
+        <ul>
+          {{ range $index, $record := $evidence }}
+            {{ if not (and $record.claim $record.source $record.reviewed) }}
+              {{ errorf "Campaign %q evidence record %d requires claim, source, and reviewed" $.File.Path (add $index 1) }}
+            {{ end }}
+            <li><strong>{{ $record.claim }}</strong> — {{ $record.source }}
+              (reviewed <time>{{ $record.reviewed }}</time>)</li>
+          {{ end }}
+        </ul>
+      </section>
+    {{ else }}
+      {{ errorf "Campaign %q has no evidence.json page resource" $.File.Path }}
+    {{ end }}
+
+    {{ with .GetTerms "issues" }}
+      <p>Issues:
+        {{ range . }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a> {{ end }}
+      </p>
+    {{ end }}
+  </article>
+{{ end }}

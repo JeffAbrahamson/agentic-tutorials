@@ -1,0 +1,9 @@
+{{ $cover := .cover }}
+<div class="image-shell" style="aspect-ratio: {{ $cover.width }} / {{ $cover.height }}">
+  <picture>
+    <source type="image/webp" sizes="{{ .sizes }}"
+      srcset="{{ range $i, $r := $cover.renditions }}{{ if $i }}, {{ end }}{{ $r.url }} {{ $r.width }}w{{ end }}">
+    <img src="{{ (index $cover.renditions 0).url }}" alt="{{ $cover.alt }}"
+      width="{{ $cover.width }}" height="{{ $cover.height }}" loading="lazy">
+  </picture>
+</div>
