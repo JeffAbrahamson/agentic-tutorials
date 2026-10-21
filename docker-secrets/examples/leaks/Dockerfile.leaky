@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+# Deliberately wrong: three common ways a secret ends up in an image.
+FROM alpine:3.24
+
+# 1. A build argument used by a RUN step.
+ARG NPM_TOKEN
+# 2. A runtime default baked into the image configuration.
+ENV DB_PASSWORD=LAB-DBPW-5e1c
+# 3. A file copied in and "deleted" in a later layer.
+COPY deploy_key /tmp/deploy_key
+RUN test -n "$NPM_TOKEN" && wc -c /tmp/deploy_key
+RUN rm /tmp/deploy_key
+
+CMD ["sleep", "3600"]

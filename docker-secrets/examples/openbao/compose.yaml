@@ -1,0 +1,54 @@
+# Teaching fixture: OpenBao issuing short-lived PostgreSQL credentials,
+# an agent rendering them for an application. The OpenBao server runs in
+# dev mode (in memory, unsealed, fixed root token): never do this for real.
+name: openbao-lab
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin
+    secrets:
+      - db_admin
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 15
+
+  bao:
+    image: openbao/openbao:2.7.1
+    command: ["server", "-dev", "-dev-root-token-id=lab-root-token",
+              "-dev-listen-address=0.0.0.0:8200", "-config=/etc/bao/server.hcl"]
+    volumes:
+      - ./server.hcl:/etc/bao/server.hcl:ro
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+
+  agent:
+    image: openbao/openbao:2.7.1
+    profiles: ["app"]
+    user: "70:70"
+    command: ["agent", "-config=/etc/agent/agent.hcl"]
+    volumes:
+      - ./agent.hcl:/etc/agent/agent.hcl:ro
+      - ./work/approle:/etc/agent/approle:ro
+      - rendered:/run/app
+
+  app:
+    image: postgres:18-alpine   # used only for its psql client
+    profiles: ["app"]
+    user: "70:70"
+    command: ["sleep", "3600"]
+    volumes:
+      - rendered:/run/app:ro
+
+secrets:
+  db_admin:
+    file: ./work/db_admin
+
+volumes:
+  rendered:                     # memory-backed: rendered secrets never hit disk
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=70,gid=70,mode=0700"

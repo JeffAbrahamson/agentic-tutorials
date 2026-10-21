@@ -1,0 +1,10 @@
+# syntax=docker/dockerfile:1
+# Build-time secrets are mounted for one RUN step only; runtime secrets are
+# not in the image at all.
+FROM alpine:3.24
+
+RUN --mount=type=secret,id=npm_token,env=NPM_TOKEN,required=true \
+    --mount=type=secret,id=deploy_key,required=true \
+    test -n "$NPM_TOKEN" && wc -c /run/secrets/deploy_key
+
+CMD ["sleep", "3600"]

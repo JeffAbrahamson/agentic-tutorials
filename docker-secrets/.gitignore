@@ -1,0 +1,7 @@
+.build/
+examples/leaks/deploy_key
+examples/compose/.env
+examples/compose/secrets/
+examples/sops/.bin/
+examples/sops/work/
+examples/openbao/work/

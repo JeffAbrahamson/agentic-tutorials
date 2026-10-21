@@ -1,0 +1,40 @@
+# Teaching fixture: one database and one client, with three ways of
+# handing them secrets. Lab values only; see lab.sh.
+name: secrets-lab
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      # The image's entrypoint reads the password from this file. It is a
+      # convention of the official image, not a Docker feature.
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 15
+
+  app:
+    image: postgres:18-alpine   # used only for its psql client
+    user: "70:70"               # non-root from the first instruction
+    command: ["sleep", "3600"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Anti-pattern kept for comparison: an interpolated plaintext value.
+      LEGACY_API_KEY: ${LEGACY_API_KEY}
+    secrets:
+      - db_password
+      - source: api_key
+        uid: "70"                 # honoured for environment-sourced secrets
+        gid: "70"
+        mode: 0400
+
+secrets:
+  db_password:
+    file: ./secrets/db_password   # bind-mounted from the host
+  api_key:
+    environment: API_KEY          # copied into the container by Compose
