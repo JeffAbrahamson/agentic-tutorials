@@ -1,8 +1,8 @@
 # Ansible: from one host to a fleet
 
-The tutorial is [ansible.pdf](ansible.pdf): a 2–3 hour read, with prediction exercises and worked answers, covering Ansible's notation, execution, inventory, roles, verification, fleet rollouts and recovery from partial completion.
+Read [ansible.pdf](ansible.pdf) or [tutorial.md](tutorial.md): a 2–3 hour read, with prediction exercises and worked answers, covering Ansible's notation, execution, inventory, roles, verification, fleet rollouts and recovery from partial completion.
 
-The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is Ansible Core 2.21.5; concrete remote examples assume dedicated Ubuntu 24.04 VMs with systemd.
+Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is Ansible Core 2.21.5; concrete remote examples assume dedicated Ubuntu 24.04 VMs with systemd.
 
 ## Build the PDF
 

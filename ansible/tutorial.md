@@ -1,12 +1,10 @@
----
-title: 'Ansible: from one host to a fleet'
-subtitle: 'Execution, targeting, rollout and recovery with ansible-core 2.21'
-date: '20 October 2026'
----
+# Ansible: from one host to a fleet
 
-<span class="unnumbered"></span>
+*Execution, targeting, rollout and recovery with ansible-core 2.21*
 
-# Scope and prerequisites
+20 October 2026
+
+## Scope and prerequisites
 
 This tutorial is about understanding what Ansible will do well enough to
 entrust it with real machines. Processes, files, SSH, exit status and failure
@@ -38,14 +36,14 @@ requiring a public listener or firewall change.
 The `examples/` directory contains the complete files. A build guide and the
 verification record are in `README.md` and `verification.md`.
 
-# Read Ansible code
+## 1. Read Ansible code
 
 This chapter is a phrasebook: enough to recognise each part of an Ansible
 repository and know what to look up. Most items get a sentence and a small
 example; apart from `hello.yml`, these are fragments. Why things behave as they do comes in later chapters, so skim this now
 and return when a construct looks unfamiliar.
 
-## Hello, world
+### 1.1 Hello, world
 
 A **playbook** is a YAML file. Saved as `hello.yml`, this one runs a single task
 on the machine you run it from:
@@ -86,7 +84,7 @@ localhost : ok=1 changed=0 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
 skips collecting data about the target. The recap counts task outcomes per host;
 chapter 2 defines them.
 
-## YAML
+### 1.2 YAML
 
 Playbooks, variable files and most inventories are YAML: data, not a programming
 language.
@@ -125,7 +123,7 @@ text: >-
   two
 ```
 
-## Plays and tasks
+### 1.3 Plays and tasks
 
 A playbook is a list of **plays**. A play selects hosts and lists **tasks**:
 
@@ -171,7 +169,7 @@ means the same as nesting them:
 batch; `no_log` hides its output. In `hosts:`, `web:&staging` means the intersection
 and `web:!db` an exclusion.
 
-## Variables and expressions
+### 1.4 Variables and expressions
 
 **Setting a variable.** There is no assignment statement; values are declared in
 some place. Common places are `vars:` on a play, block or task;
@@ -258,7 +256,7 @@ mode: "{{ web_mode | default(omit) }}"
 motd: "{{ lookup('ansible.builtin.file', 'motd.txt') }}"
 ```
 
-## Loops, retries and errors
+### 1.5 Loops, retries and errors
 
 **Loops.** `loop` runs a task once per element, with the current one in `item`.
 `loop_control: {loop_var: user}` renames it, which matters when loops nest.
@@ -296,7 +294,7 @@ unreachable host, which triggers neither `rescue` nor `always`.
 judgement with an expression, and `ignore_errors: true` continues after a failure.
 Each deserves scrutiny in review.
 
-## The nearest things to functions
+### 1.6 The nearest things to functions
 
 Ansible has no function definition. Three constructs share the job, and none
 returns a value or has a private scope in the way a function does: results reach
@@ -340,7 +338,7 @@ handlers:
 When an expression becomes unreadable, real code can move to Python: a file in
 `filter_plugins/` beside the playbook adds a filter.
 
-## Names with special meaning
+### 1.7 Names with special meaning
 
 **`ansible_` connection variables.** You set these to control how Ansible connects:
 `ansible_host`, `ansible_user`, `ansible_python_interpreter`.
@@ -370,7 +368,7 @@ db_password: !vault |
 shown_literally: !unsafe "{{ not a template }}"
 ```
 
-## Look-alikes, and why both exist
+### 1.8 Look-alikes, and why both exist
 
 **`copy` and `template`.** `copy` installs a file's bytes unchanged, usually from
 a role's `files/`. `template` first renders Jinja on the controller, usually from
@@ -420,7 +418,7 @@ that patterns select, and the second is the address used to connect.
 how many hosts go through the play at a time. Only `serial` limits how much of a
 fleet can be changed at once; chapter 7 covers it.
 
-## Files and commands
+### 1.9 Files and commands
 
 A typical repository, though much of this is optional:
 
@@ -474,9 +472,9 @@ Flags you will see often are `-i` (inventory), `-l` (limit hosts), `-e` (extra
 variables), `-C` (check mode), `-D` (diff), `-b` (become), `-K` (prompt for the
 become password), `-t` (select tags) and `-v` (more output; repeat for more still).
 
-# Predict the run
+## 2. Predict the run
 
-## A remote program with a state-aware vocabulary
+### 2.1 A remote program with a state-aware vocabulary
 
 Imagine a Python program that iterates over machines, connects over SSH,
 inspects a file or package, and changes it if necessary. Ansible provides the
@@ -532,7 +530,7 @@ continuously reconciling them. If someone edits the file tomorrow, it stays edit
 until another run repairs it, unless you arrange a separate schedule. A successful
 run is a dated observation and a sequence of effects.
 
-## Predict ordering per host
+### 2.2 Predict ordering per host
 
 Suppose a play selects three hosts and contains package, configuration and service
 tasks. With the default **linear strategy**, Ansible completes the package task
@@ -565,7 +563,7 @@ customise its changed and failure conditions; therefore a green recap is only as
 good as those conditions. Always read the task implementation behind a surprising
 success.
 
-## Where judgement belongs
+### 2.3 Where judgement belongs
 
 An agent can usually write straightforward module calls, scaffold a role and fix
 mechanical YAML mistakes. You retain decisions about ownership, target selection,
@@ -584,9 +582,9 @@ intermediate state.
 and then fails its health check. Which earlier effects remain? What would you
 need to inspect before deciding to rerun? Write a three-sentence answer. [Worked answer](#answer-1)
 
-# Prove the target before changing it
+## 3. Prove the target before changing it
 
-## Identity is part of configuration
+### 3.1 Identity is part of configuration
 
 An **inventory** describes host identities, groups and connection data. Start with
 a small explicit file whose output you can inspect. Our example is
@@ -649,7 +647,7 @@ task might acquire from roles, registered results or play variables. Its output
 may contain secrets in a real repository: inspect locally and avoid pasting it
 into a public ticket.
 
-## Selection has two stages
+### 3.2 Selection has two stages
 
 A play's `hosts: status` selects candidates. `--limit lab-status-01` narrows that
 set. It does not turn a play for databases into a play for web servers. With
@@ -673,7 +671,7 @@ can still reach production. Pair them with appropriate credentials and a
 reviewable operational command. Do not combine all inventories for convenience
 and assume `--limit` will always save you.
 
-## Access, privilege and the controller's configuration
+### 3.3 Access, privilege and the controller's configuration
 
 SSH login and **become** are separate. `ansible_user: deploy` chooses the remote
 login. `become: true` asks for privilege escalation, normally using sudo;
@@ -721,9 +719,9 @@ selected config, inventory output, actual aliases and effective connection data.
 must you check? Why is changing to an inline address inventory a poor automatic
 fix? [Worked answer](#answer-2)
 
-# Configure one real service
+## 4. Configure one real service
 
-## Define the contract first
+### 4.1 Define the contract first
 
 Our service returns an exact, host-specific line on a loopback HTTP endpoint:
 
@@ -757,7 +755,7 @@ Read its files as a small program. Here, putting the files in a role also makes
 the later growth discussion concrete; one play with tasks would be reasonable
 for a single small personal host.
 
-## Read the tasks as a causal chain
+### 4.2 Read the tasks as a causal chain
 
 The following is the complete `roles/status_service/tasks/main.yml`:
 
@@ -835,7 +833,7 @@ place. That is a file-level property, not a transaction covering package
 installation, service activation and future tasks. If nginx was just installed,
 that installation remains even when template validation fails.
 
-## The complete template and handler
+### 4.3 The complete template and handler
 
 `roles/status_service/templates/nginx.conf.j2` contains:
 
@@ -911,7 +909,7 @@ express the reusable contract; inventory records the environment's chosen values
 For a very small repository you could omit explicit inventory values until they
 differ, but make sure a reviewer can find where a real environment's policy lives.
 
-## The play controls selection and verification
+### 4.4 The play controls selection and verification
 
 Here is the complete `site.yml`:
 
@@ -988,9 +986,9 @@ those distinctions unresolved.
 assumptions and describe the useful evidence for deciding between reload and
 restart. [Worked answer](#answer-3)
 
-# Trace data before adding abstraction
+## 5. Trace data before adding abstraction
 
-## Variables are inputs, not a Python execution frame
+### 5.1 Variables are inputs, not a Python execution frame
 
 For a Python programmer, YAML is data describing operations and policy. Jinja
 expressions compute arguments from the current host's variables. Do not imagine
@@ -1048,7 +1046,7 @@ injection, exit status and repeatability become your responsibility. A
 path exists, not that the full desired configuration or schema is correct.
 [Command module](https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html).
 
-## Learn the precedence relationships you need
+### 5.2 Learn the precedence relationships you need
 
 The useful question is “which definition supplies this value at this task?”
 Memorising the entire precedence table is less helpful than being able to trace
@@ -1094,7 +1092,7 @@ sparingly. Prefix role-owned inputs, as `status_...`, to reduce collisions.
 Putting every value in `roles/.../vars/main.yml` makes caller overrides harder
 because role vars have high precedence.
 
-## Grow structure in response to pressure
+### 5.3 Grow structure in response to pressure
 
 A personal-host play can remain a single file. A role earns its cost when a
 coherent responsibility has multiple files, callers, environments or maintainers.
@@ -1130,9 +1128,9 @@ the conflict.
 operator supplies `-u emergency` but inventory has `ansible_user: deploy`, can
 they assume the SSH login changed? [Worked answer](#answer-4)
 
-# Build evidence in layers
+## 6. Build evidence in layers
 
-## A preview answers a narrower question than a run
+### 6.1 A preview answers a narrower question than a run
 
 Ansible's check mode is not a Terraform plan. It asks modules to predict changes
 against the state they can currently observe. It does not build a complete
@@ -1175,7 +1173,7 @@ wrong machine returns it. The exact identity and release in our body checks are
 small but purposeful acceptance criteria. In a real service, add functional
 checks that distinguish a live process from a useful service.
 
-## Try the complete remote example later
+### 6.2 Try the complete remote example later
 
 On a Linux controller with Python 3.12 and the `venv` module available, from the
 supplied `examples/` directory:
@@ -1239,7 +1237,7 @@ query from the client's network through the real DNS, TLS, firewall, routing and
 load-balancer path. Merely delegating the loopback query to the controller would
 query the controller's loopback instead of the target's.
 
-## A local experiment in convergence
+### 6.3 A local experiment in convergence
 
 The supplied `local/converge.yml` uses `connection: local`, no become and no
 remote hosts. It writes only `local/.state/converge/` beneath the example
@@ -1288,9 +1286,9 @@ its health task receives HTTP 200. Write three additional acceptance criteria be
 you would trust it on a Jellybooks service. Make each identify a failure that
 those two observations could miss. [Worked answer](#answer-5)
 
-# Control a fleet change
+## 7. Control a fleet change
 
-## Concurrency is not an availability policy
+### 7.1 Concurrency is not an availability policy
 
 Thirty to fifty machines do not call for a complicated framework by themselves.
 They do call for an explicit change budget. Five forks mean up to five worker
@@ -1329,7 +1327,7 @@ five contain an entire shard's quorum. Group by failure domain and responsibilit
 when those distinctions matter; do not use a percentage as a substitute for
 understanding the service.
 
-## Decide what failure should stop
+### 7.2 Decide what failure should stop
 
 By default, losing one host does not necessarily stop healthy hosts or later
 batches. `any_errors_fatal: true` makes a failure fatal to the wider run: the
@@ -1353,7 +1351,7 @@ failure after recording recovery evidence. An unreachable host is a different
 failure class and does not enter ordinary block rescue.
 [Blocks and rescue](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_blocks.html).
 
-## Turn a batch into a service-aware procedure
+### 7.3 Turn a batch into a service-aware procedure
 
 For a redundant web tier behind a load balancer, the intended sequence might be:
 
@@ -1405,9 +1403,9 @@ batch fails after all five have installed new configuration. How many hosts
 might already have changed? What happens to the remaining six? Would adding
 `run_once` to a migration make it globally once-only? [Worked answer](#answer-6)
 
-# Diagnose partial completion and recover deliberately
+## 8. Diagnose partial completion and recover deliberately
 
-## Reconstruct the last proven state
+### 8.1 Reconstruct the last proven state
 
 A failed run is an incident with a timeline. First preserve the command, selected
 hosts, effective input revision, recap and relevant task results. Then ask which
@@ -1446,7 +1444,7 @@ causes. A missing interpreter is not corrected by changing a service timeout.
 A reload failure is not corrected by marking the template `changed_when: false`.
 A wrong target is not corrected by repeatedly running the same valid module.
 
-## The lost-notification trap
+### 8.2 The lost-notification trap
 
 Imagine this task sequence on an already running host:
 
@@ -1501,7 +1499,7 @@ independent repeat, run `D=$(mktemp -d)` and add `-e lab_root=$D` to **all
 three commands**; a path is a string, so the `key=value` form is safe here. Do
 not accidentally reuse a directory with an existing applied file.
 
-## Recovery is a new, bounded change
+### 8.3 Recovery is a new, bounded change
 
 If the real host's installed config is the intended one, validate it and perform
 the missing reload under the agreed change policy; then check the served result.
@@ -1539,9 +1537,9 @@ an action whose reason should be explicit.
 instead of `r2`. Give two explanations and the observations that distinguish
 them. What must a recovery prove before moving to the next host? [Worked answer](#answer-7)
 
-# Keep operations understandable
+## 9. Keep operations understandable
 
-## Treat secrets as a data path
+### 9.1 Treat secrets as a data path
 
 Ansible Vault encrypts files or values **at rest**. Once unlocked, a secret is
 available to the controller and to tasks that use it. Encryption of a repository
@@ -1590,7 +1588,7 @@ lab; a production policy must be deliberate. Be cautious about delegated tasks
 in privileged plays: inherited become settings can affect the delegated machine
 unless overridden appropriately.
 
-## Pin the executable environment, then plan upgrades
+### 9.2 Pin the executable environment, then plan upgrades
 
 `ansible-core==2.21.5` pins the tutorial's engine, not every dependency forever.
 The example uses no external collection. Once a repository uses community or
@@ -1627,7 +1625,7 @@ other shared change lock can be sufficient for a fleet of tens of hosts. Record 
 inventory snapshot, invocation and outcome so you can reconstruct a change even
 when a dynamic inventory later changes membership.
 
-## Read an inherited repository before refactoring it
+### 9.3 Read an inherited repository before refactoring it
 
 Start with its documented entry point, actual invocation, environment inventory,
 configuration file and dependency pins. Read one host's execution path through
@@ -1678,13 +1676,13 @@ uses its contents in a template with mode `'0644'`, and enables `--diff` in CI.
 The author says the values are safe because Git contains ciphertext. Trace two
 plaintext exposure paths and propose controls matched to those paths. [Worked answer](#answer-8)
 
-# Share ownership across tools
+## 10. Share ownership across tools
 
 This optional chapter assumes the execution, inventory and failure models from
 chapters 1–8. Its purpose is to help you specify a handover between tools; it is
 not a Terraform or container orchestration tutorial.
 
-## Establish a single writer for each resource
+### 10.1 Establish a single writer for each resource
 
 A useful initial boundary is: Terraform owns the lifecycle of
 VMs, networks, addresses and related provider resources; Ansible owns agreed
@@ -1733,7 +1731,7 @@ For example, a role tag supplied by the infrastructure layer might determine the
 or the wrong service. The right acceptance test is the expected identity set and
 bootstrap contract, followed by host configuration and service acceptance.
 
-## Containers move some of the boundary
+### 10.2 Containers move some of the boundary
 
 For Dockerised services, place application dependencies and immutable executable
 content in the image where practical. Ansible can still own the host's Docker
@@ -1776,7 +1774,7 @@ file; the application deployment script also restarts nginx. Describe one
 simpler ownership contract. What must happen before Terraform may remove a VM
 that still serves traffic? [Worked answer](#answer-9)
 
-# Worked answers
+## 11. Worked answers
 
 Attempt the exercises first. These answers show reasoning rather than a single
 required phrasing. Your service topology may justify a different policy, but it
@@ -1784,7 +1782,7 @@ must still explain the actual execution semantics.
 
 <span id="answer-1"></span>
 
-## 1. Earlier effects survive
+### 1. Earlier effects survive
 
 [Back to exercise 1](#exercise-1)
 
@@ -1798,7 +1796,7 @@ only as a supported transition from known state; Ansible is not atomic.
 
 <span id="answer-2"></span>
 
-## 2. A limit must resolve to the intended inventory identity
+### 2. A limit must resolve to the intended inventory identity
 
 [Back to exercise 2](#exercise-2)
 
@@ -1819,7 +1817,7 @@ not a successful implementation of the request.
 
 <span id="answer-3"></span>
 
-## 3. Report and control the right transition
+### 3. Report and control the right transition
 
 [Back to exercise 3](#exercise-3)
 
@@ -1835,7 +1833,7 @@ served release. Inspect documentation, logs and the actual acceptance response.
 
 <span id="answer-4"></span>
 
-## 4. Extra variables win here; ordinary CLI flags need care
+### 4. Extra variables win here; ordinary CLI flags need care
 
 [Back to exercise 4](#exercise-4)
 
@@ -1848,7 +1846,7 @@ new assignments throughout the play.
 
 <span id="answer-5"></span>
 
-## 5. Convergence and a 200 response leave important gaps
+### 5. Convergence and a 200 response leave important gaps
 
 [Back to exercise 5](#exercise-5)
 
@@ -1869,7 +1867,7 @@ A repeat run proves only the state and paths you actually exercised.
 
 <span id="answer-6"></span>
 
-## 6. A batch can change several hosts before its gate fails
+### 6. A batch can change several hosts before its gate fails
 
 [Back to exercise 6](#exercise-6)
 
@@ -1885,7 +1883,7 @@ clearer.
 
 <span id="answer-7"></span>
 
-## 7. Separate missed activation from rejected activation
+### 7. Separate missed activation from rejected activation
 
 [Back to exercise 7](#exercise-7)
 
@@ -1904,7 +1902,7 @@ membership transition as well.
 
 <span id="answer-8"></span>
 
-## 8. Ciphertext in Git does not protect every plaintext copy
+### 8. Ciphertext in Git does not protect every plaintext copy
 
 [Back to exercise 8](#exercise-8)
 
@@ -1921,7 +1919,7 @@ Vault nor task logging policy prevents it from logging a secret after startup.
 
 <span id="answer-9"></span>
 
-## 9. Give the file and lifecycle one owner each
+### 9. Give the file and lifecycle one owner each
 
 [Back to exercise 9](#exercise-9)
 
@@ -1938,7 +1936,7 @@ verify the service no longer depends on it, handle state and persistent data,
 then allow infrastructure destruction. Establish what happens if drain succeeds
 but destroy fails, or destroy is requested while configuration is incomplete.
 
-# Field reference
+## 12. Field reference
 
 Use this when an agent proposes a change. Each question points
 to behaviour you have already traced; it is not a substitute for understanding
@@ -1969,7 +1967,7 @@ That is more useful than asking an agent to “make an idempotent Ansible role�
 It states what correctness means while leaving mechanical implementation to the
 agent.
 
-# Sources and verification
+## 13. Sources and verification
 
 Research date: **20 October 2026**, and **3 November 2026** for chapter 1. The executable target is **Core 2.21.5**.
 Official Ansible community documentation URLs under `latest` can change after

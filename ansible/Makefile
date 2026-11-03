@@ -4,10 +4,11 @@ PDF_ENGINE ?= xelatex
 .PHONY: all clean
 all: ansible.pdf
 
-ansible.pdf: tutorial.md pdf-header.tex code-breaks.lua span-markers.lua Makefile
+ansible.pdf: tutorial.md pdf-header.tex code-breaks.lua span-markers.lua title-block.lua Makefile
 	mkdir -p .build
 	$(PANDOC) tutorial.md --standalone --toc --toc-depth=2 \
-	  --number-sections --pdf-engine=$(PDF_ENGINE) \
+	  --shift-heading-level-by=-1 --pdf-engine=$(PDF_ENGINE) \
+	  --lua-filter=title-block.lua \
 	  --include-in-header=pdf-header.tex --lua-filter=code-breaks.lua \
 	  --lua-filter=span-markers.lua \
 	  --highlight-style=tango --resource-path=. \
