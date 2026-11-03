@@ -1,6 +1,6 @@
 # Hugo beyond Markdown: content graphs, build pipelines, and theme architecture
 
-Hugo 0.168.0 · Linux · researched 21 October 2026
+Hugo 0.168.0 · Linux · researched 21 October 2026, reading primer 3 November 2026
 
 This tutorial treats Hugo as a programmable publishing compiler, not as a
 Markdown converter. Two small sites provide the running examples:
@@ -16,13 +16,329 @@ explain where Hugo gets its leverage, choose what belongs in content, templates,
 themes, data, or a live service, and review an implementation without writing
 every template by hand.
 
-Allow 2–3 hours including the exercises. Each exercise is a prediction, design
+Allow 2–3 hours including the exercises, with chapter 1 a reading primer to skim
+and return to. Each exercise is a prediction, design
 decision, or review rather than a syntax drill. Worked reasoning is collected
 near the end.
 
-## 1. Replace the converter model
+## 1. Read a Hugo project
 
-### 1.1 The weak model and the useful model
+This chapter is a phrasebook: enough to recognise each part of a Hugo project and
+know what to look up. It is for reading, not for learning to write templates. Most
+items get a sentence and a small example, usually a fragment. Why things behave as
+they do comes in later chapters, so skim this now and return when a construct looks
+unfamiliar.
+
+### 1.1 Hello, world
+
+Three files make a site:
+
+```text
+hugo.toml                 title = "Hello"
+content/_index.md         the home page's text
+layouts/home.html         the home page's template
+```
+
+```markdown
+---
+title: Hello, world
+---
+Some *Markdown*.
+```
+
+```go-html-template
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+```
+
+Running `hugo` with no arguments builds into `public/`, where
+`public/index.html` contains:
+
+```html
+<h1>Hello, world</h1>
+<p>Some <em>Markdown</em>.</p>
+```
+
+A site like this also gets RSS feeds and a sitemap unless told otherwise. This one
+also logs `WARN found no layout file for "html" for kind "taxonomy"`, because Hugo
+creates the default `tags` and `categories` lists and nothing here can render them.
+
+### 1.2 Project layout
+
+Some names are fixed by Hugo, and most of them hold a different kind of input
+([directory structure](https://gohugo.io/getting-started/directory-structure/)).
+
+| Path | What it holds |
+| --- | --- |
+| `hugo.toml` | Site configuration; also `.yaml` or `.json`, or a `config/` directory |
+| `content/` | Pages, in a tree that becomes the site's sections |
+| `layouts/` | Templates |
+| `assets/` | Files that templates process, such as CSS to fingerprint |
+| `static/` | Files copied to the output as they are |
+| `data/` | YAML, JSON or TOML that templates read |
+| `i18n/` | Translated strings |
+| `archetypes/` | Templates for `hugo new content` |
+| `themes/NAME/` | A theme, laid out like a project |
+| `public/` | The output; normally not committed |
+| `resources/_gen/` | A cache of processed assets |
+| `go.mod` | Present when the project or theme uses Hugo Modules |
+| `theme.toml`, `exampleSite/` | A theme's description, and a demonstration site |
+
+Inside `layouts/`, the current names are `baseof.html`, `home.html`, `section.html`,
+`page.html`, `taxonomy.html`, `term.html`, `_partials/`, `_shortcodes/` and
+`_markup/`. **Older themes use `_default/single.html`, `_default/list.html`,
+`partials/` and `shortcodes/`**, the layout before 0.146, and chapter 4 explains the
+difference. `single.html`, `list.html` and `all.html` also work at the top of
+`layouts/` in the current scheme, as fallbacks for single pages, lists and everything.
+`404.html` and `robots.txt` render those special files. An older theme's `terms.html`
+and `taxonomy.html` meant what `taxonomy.html` and `term.html` mean now.
+
+### 1.3 Pages and front matter
+
+A content file opens with **front matter**, whose fence gives its format: `---` for
+YAML, `+++` for TOML, and `{` for JSON.
+
+```markdown
+---
+title: One
+date: 2026-01-01
+draft: true
+weight: 2
+slug: first
+tags: [a, b]
+params:
+  urgency: high
+---
+Body text.
+```
+
+`draft: true` keeps a page out of a build unless `--buildDrafts` is given. `slug`
+replaces the last part of the URL, and `url` the whole path. `weight` orders pages.
+`tags` works because `tags` is a configured **taxonomy**. Your own keys belong under
+`params`, and templates read them as `.Params.urgency`
+([front matter](https://gohugo.io/content-management/front-matter/)). Others you
+will meet are `publishDate` and `expiryDate`, which hide a page outside those times;
+`aliases`, for old URLs that redirect; `cascade`, which passes values to descendant
+pages; and `headless: true` on a bundle that should have no page of its own.
+
+**Three file names** decide what a page is
+([page bundles](https://gohugo.io/content-management/page-bundles/)):
+
+| Path | Meaning |
+| --- | --- |
+| `content/about.md` | A plain page |
+| `content/posts/one/index.md` | A **leaf bundle**: one page, with sibling files as its resources |
+| `content/posts/_index.md` | A **branch bundle**: the page for the section itself |
+
+The underscore matters. `_index.md` describes a list of pages, and `index.md` is a
+single page.
+
+**Page kinds.** A content or list page has a `.Kind`: `home`, `section`, `page`,
+`taxonomy` (such as `/tags/`) or `term` (such as `/tags/a/`). This decides which
+template applies. Special pages have kinds of their own, such as `404`.
+
+### 1.4 Template actions
+
+Templates are Go's `html/template` language plus Hugo's functions. Everything
+between `{{` and `}}` is an **action**, and the rest is copied out
+([templates](https://gohugo.io/templates/introduction/)).
+
+| Form | Meaning |
+| --- | --- |
+| `{{ .Title }}` | A field of the current context |
+| `{{ $n := 0 }}` | Declare a variable |
+| `{{ $n = add $n 1 }}` | Assign to it; `add` is a function, called with spaces, not parentheses |
+| `{{ if and (gt $n 0) .IsHome }} … {{ else if … }} … {{ else }} … {{ end }}` | Branch; operators are functions, as with `eq`, `ne`, `in` and `len` |
+| `{{ range .Pages }} … {{ else }} … {{ end }}` | Loop, with `else` when empty |
+| `{{ range $i, $p := .Pages }} … {{ end }}` | Loop, naming the index and value |
+| `{{ with .Params.logo }} … {{ else with .Alt }} … {{ else }} … {{ end }}` | Run if the value is non-empty |
+| `{{/* a comment */}}` | Not copied to the output |
+| `{{- .Title -}}` | Remove the whitespace either side of the action |
+
+**Pipes.** `|` passes a value as the *last* argument of the next function, so
+`{{ "a" | upper }}` means `{{ upper "a" }}`, and a chain reads left to right:
+
+```go-html-template
+{{ with resources.Get "css/main.css" }}
+  {{ with . | minify | fingerprint }}
+    <link rel="stylesheet" href="{{ .RelPermalink }}">
+  {{ end }}
+{{ end }}
+```
+
+The outer `with` is the guard. Piping a missing resource straight into `minify` fails
+the build rather than skipping the block.
+
+**Dots mean two things.** `.Foo` is a field or method of the context, and may take
+arguments, as in `.Resources.Get "x"`. `foo.Bar` with no leading dot is a function in
+a namespace: `strings.ToLower`, `transform.Unmarshal`, `debug.Dump`. Many functions
+have both a short and a namespaced name, so `safeHTML` is `safe.HTML` and `where` is
+`collections.Where`.
+
+**Data structures.** `dict "a" 1` builds a map and `slice 1 2 3` a list. `index LIST 1`
+reads an element, and `$d.a` a map's key. `default "text" .Params.x` supplies a
+fallback, and `append` adds to a list. `{{ T "key" }}` looks up a translation, and
+`relref` a link to a page. Common queries are `where .Pages "Section" "posts"`, `first 3 .Pages`, and
+`sort .Pages "Title" "desc"`.
+
+**You will also meet** these often in themes:
+
+| Form | Meaning |
+| --- | --- |
+| `printf "%s-%d" "a" 1` | Format a string |
+| `.Date.Format "2006-01-02"` | Format a date; Go writes the layout using that exact reference date |
+| `now`, `jsonify` | The current time, and a value as JSON |
+| `relURL`, `absURL` | Apply `baseURL` to a path |
+| `markdownify`, `.RenderString` | Render a string as Markdown |
+| `site.Menus.main` | Menu entries, from configuration or a page's `menu` front matter key |
+| `.Paginate`, `.Paginator` | Split a list into numbered pages |
+| `site.GetPage "/posts"` | Find a page by path |
+| `.Pages.ByDate` | One of several ready-made sorts |
+| `.Language`, `.Translations` | The page's language, and its other versions |
+| `hugo.IsProduction`, `hugo.Environment` | Which environment this build is for |
+
+**Escaping.** Output is escaped according to where it lands, so `{{ "<b>" }}` prints
+`&lt;b&gt;`. `safeHTML` and its relatives switch this off, so each use deserves
+a question. `.Content` and `.Summary` are already marked as safe HTML.
+
+**Errors.** `errorf "text %s" $x` logs an error, rendering carries on, and the build
+fails when it finishes, so `public/` may hold output from a failed build. `warnf` only
+logs. A field that does not exist on a page, such as `.Nope`, fails that page with
+`can't evaluate field Nope`, while a missing key in a map, such as `.Params.nope`, is
+silently empty. `try` catches a failure in an expression and exposes `.Err` and
+`.Value`.
+
+### 1.5 Dot and dollar
+
+**`.` is the current context, and it changes.** At the top of a template it is
+usually the page. Inside `range` and `with` it becomes the current element. Chapter 4
+gives this the attention it needs.
+
+**`$` is the context the template started with**, so inside a loop `.Title` is the
+element's title and `$.Title` the page's.
+
+**`.Site` and `site`.** `site` is a function available anywhere, and `.Site` a field
+that needs a page as context. `.Page`, available on most objects, reaches the page
+from a shortcode or render hook.
+
+### 1.6 Units of reuse
+
+| Form | Meaning |
+| --- | --- |
+| `{{ partial "card.html" . }}` | Run `_partials/card.html`, with `.` as its context |
+| `{{ partial "card.html" (dict "page" . "n" 1) }}` | Pass several values, as a map |
+| `{{ return (mul . 2) }}` | Inside a partial: return a value, like a function |
+| `{{ partialCached "nav.html" . }}` | The same, reusing one result |
+| `{{ block "main" . }} … {{ end }}` | In `baseof.html`: a slot, with default content |
+| `{{ define "main" }} … {{ end }}` | In a page template: fill that slot |
+| `{{ template "main" . }}` | Call a named `define`; often the slot in `baseof.html`, with no default |
+
+**Base templates.** A `home.html` or `page.html` usually contains only `define`
+blocks, and `baseof.html` holds the surrounding page. Text outside `define` in such
+a file is a known trap (chapter 4).
+
+**Shortcodes** are the reuse form for page authors, and live in content rather than
+templates ([shortcodes](https://gohugo.io/content-management/shortcodes/)):
+
+```markdown
+{{< note kind="x" >}}inner text{{< /note >}}
+{{% note kind="y" %}}inner *text*{{% /note %}}
+```
+
+`_shortcodes/note.html` reads `.Get "kind"` and `.Inner`.
+
+**Render hooks** are templates in `_markup/`, such as `render-image.html`, that
+replace how a Markdown construct renders throughout the site (chapter 8).
+
+### 1.7 Look-alikes, and why both exist
+
+**`{{< >}}` and `{{% %}}`.** Output from the first form goes into the page as it is.
+Output from the second is treated as Markdown, so raw HTML in it is dropped by
+default. In a test, the `%` form's `<aside>` came out as `<!-- raw HTML omitted -->`.
+
+**`_index.md` and `index.md`.** A list page and a single page, as above.
+
+**`assets/` and `static/`.** Templates can transform files in `assets/`, and only
+what they use is published. `static/` is copied whole and is out of their reach. A
+page bundle's own files are a third kind, **page resources**, reached through
+`.Resources`.
+
+**`.Permalink` and `.RelPermalink`.** The first includes the scheme and host from
+`baseURL`, and the second only the path.
+
+**`.Pages` and `.RegularPages`.** `.Pages` is a list page's children, including
+subsections. `.RegularPages` has only its pages of kind `page`, without descending
+into subsections. `site.RegularPages` has every such page in the site.
+
+**`.Content`, `.Summary` and `.Plain`.** The rendered body, a teaser, and the body
+without markup.
+
+**`.Params` and `site.Params`.** A page's own values, and the `[params]` table in
+`hugo.toml`.
+
+**`.Type`, `.Section` and `.Kind`.** Chapter 3 separates these. `.Kind` is one of the
+five kinds above, `.Section` comes from the top-level content directory, and `.Type`
+can be set to choose templates and defaults to the section.
+
+**`.Store` and `.Scratch`.** Both hold mutable per-page values, and `.Store` is the
+current choice.
+
+**Theme and module.** A theme is a directory listed in `theme =`. A **Hugo Module** is
+a versioned component fetched with Go's tooling, and appears under `[module]` with
+`[[module.imports]]`. `[[…]]` is TOML's notation for one item of a list. Chapter 7
+compares them.
+
+**`hugo server` and `hugo`.** The first builds in memory, serves with live reload and
+defaults to the `development` environment. The second writes to `public/` for
+`production`. Chapter 9 gives the consequences.
+
+### 1.8 Reading output and commands
+
+```text
+                  │ EN
+──────────────────┼────
+ Pages            │ 13
+ Non-page files   │  1
+ Static files     │  1
+ Processed images │  0
+```
+
+Build totals count more than your `content/` files, because `Pages` includes the
+sections, taxonomies and terms Hugo generates.
+
+A template failure names the file, line and column, as in
+`layouts/term.html:1:29`, and `WARN` lines do not stop the build unless
+`--panicOnWarning` is given. Fingerprinted output files carry a hash in the name, as in
+`css/main.min.15c42ab7….css`.
+
+| Command | Meaning |
+| --- | --- |
+| `hugo`, `hugo build` | Build into `public/`; the two are the same |
+| `hugo server -D` | Serve locally, with drafts |
+| `hugo new content posts/x.md` | Create a page from an archetype |
+| `hugo list all` | List pages and their dates as CSV |
+| `hugo config`, `hugo config mounts` | Show effective settings and component layers |
+| `hugo mod get`, `hugo mod graph` | Fetch and inspect modules |
+| `hugo --gc --minify` | A common production build |
+
+### 1.9 Everyday vocabulary
+
+| Term | Meaning |
+| --- | --- |
+| Section | A top-level `content/` directory, or a nested one with `_index.md` |
+| Taxonomy, term | A classification such as `tags`, and one value such as `a` |
+| Bundle, resource | A page's directory, and the files in it |
+| Headless | A bundle with no page of its own, used only as data |
+| Content adapter | `_content.gotmpl`: a template that creates pages from data |
+| Output format | One page rendered in another form, such as JSON or RSS |
+| Mount | A rule mapping a directory into Hugo's virtual file system |
+| Fingerprint | A content hash in a file's name, for safe long-term caching |
+| Archetype | A template for a new content file |
+| Goldmark | Hugo's Markdown renderer, configured under `[markup]` |
+
+## 2. Replace the converter model
+
+### 2.1 The weak model and the useful model
 
 The weak model is:
 
@@ -77,7 +393,7 @@ live stock, personalised search, and database transactions need a browser-side
 application or a service. Hugo can publish a snapshot or a client that talks to
 that service; it does not become the service.
 
-### 1.2 The two examples as different projections
+### 2.2 The two examples as different projections
 
 Green Horizon can derive several views from a campaign record:
 
@@ -98,7 +414,7 @@ Lens Vault can turn one album record into:
 Neither domain is naturally a reverse-chronological blog. The page graph and
 template dispatcher do not require it to be one.
 
-### 1.3 Execution, state, and repetition
+### 2.3 Execution, state, and repetition
 
 A production build reads configuration and component layers, constructs sites
 and their pages, resolves templates, executes transformations, and writes a
@@ -125,6 +441,8 @@ Reproducibility is therefore a design property, not an automatic consequence of
 using a static generator. Pin Hugo and dependency versions, control time where
 needed, make remote inputs explicit, and compare outputs that matter.
 
+<span id="exercise-1"></span>
+
 ### Exercise 1 — predict the boundary
 
 The photo backend has 400,000 private images. A proposal says: “Hugo will fetch
@@ -132,6 +450,8 @@ the API during deployment, generate the public albums, handle a signed-in
 owner's edits, and update the gallery immediately after each edit.” Divide that
 sentence into work Hugo can own and work another component must own. What is the
 freshness contract of the Hugo-owned part?
+
+[Worked answer](#answer-1)
 
 ### A useful question for an implementation agent
 
@@ -144,9 +464,9 @@ assets, the rebuild trigger, cache and failure behaviour, and the service that
 owns runtime operations. “Hugo can call APIs and is very fast” is not evidence
 of a sound boundary.
 
-## 2. Model a site as content, not files
+## 3. Model a site as content, not files
 
-### 2.1 Page kinds are semantic inputs to dispatch
+### 3.1 Page kinds are semantic inputs to dispatch
 
 Hugo has five page kinds:
 
@@ -217,7 +537,7 @@ may also validate date format and allowed fields before Hugo runs. If evidence
 is optional, an empty state would be more honest. The important choice is that
 absence and malformed required records have specified semantics.
 
-### 2.2 Sections, types, layouts, and taxonomies are not synonyms
+### 3.2 Sections, types, layouts, and taxonomies are not synonyms
 
 Keep these axes separate:
 
@@ -256,7 +576,7 @@ membership are useful. Use explicit page references or identifiers when the
 edge has attributes, ordering, validity dates, or referential-integrity needs
 ([taxonomies](https://gohugo.io/content-management/taxonomies/)).
 
-### 2.3 Front matter is control data, not just metadata
+### 3.3 Front matter is control data, not just metadata
 
 Front matter can affect publication dates, aliases, URL construction, outputs,
 template selection, taxonomies, and descendant defaults. A branch page's
@@ -283,7 +603,7 @@ Separate fields by responsibility:
 | Signed rendition URL | Runtime backend | Secret/expiring capability; do not publish at build time |
 | Public rendition dimensions and URL | Backend snapshot | Stable input to static responsive markup |
 
-### 2.4 Generated pages join the same graph
+### 3.4 Generated pages join the same graph
 
 Lens Vault does not maintain one Markdown stub per backend album. Its checked-in
 API snapshot lives at `assets/api/albums.json`; the content adapter
@@ -331,6 +651,8 @@ pipeline could fetch the API into a versioned artefact before Hugo runs, or use
 schema validation, approval, and rendering; the second is simpler but couples
 the build to the API. That is an architectural choice, not a syntax preference.
 
+<span id="exercise-2"></span>
+
 ### Exercise 2 — choose representations
 
 Green Horizon adds public events with a venue, campaign, start/end time,
@@ -338,6 +660,8 @@ accessibility information, and possible cancellation. Decide which should be a
 section, page bundle, taxonomy, ordinary parameter, or explicit page reference.
 Would you put events inside campaign bundles or in their own top-level section?
 State the query and ownership pressures that decide.
+
+[Worked answer](#answer-2)
 
 ### A useful question for an implementation agent
 
@@ -349,9 +673,9 @@ references, demonstrates `index.md` versus `_index.md`, and includes collision
 or missing-reference checks. A weak answer presents a directory tree without
 explaining the queries it enables.
 
-## 3. Predict template dispatch
+## 4. Predict template dispatch
 
-### 3.1 First discard pre-0.146 folklore
+### 4.1 First discard pre-0.146 folklore
 
 Hugo 0.146.0 replaced the template system. For Hugo 0.168.0, the representative
 layout is:
@@ -379,7 +703,7 @@ official overview records the migration and current identifiers
 ([new template system](https://gohugo.io/templates/new-templatesystem-overview/)).
 This matters particularly when asking an agent trained on mixed-age examples.
 
-### 3.2 Dispatch is a specificity calculation
+### 4.2 Dispatch is a specificity calculation
 
 For a requested page/output pair, lookup considers:
 
@@ -415,7 +739,7 @@ Do not try to memorise the entire lookup table. Retain the axes, then use a tiny
 fixture and Hugo's inspection tools for a disputed case. `templates.Current`
 can expose the executing template during diagnosis.
 
-### 3.3 Base templates and blocks are a protocol
+### 4.3 Base templates and blocks are a protocol
 
 A selected template is composed with a base template only when it contains at
 least one `define` action and otherwise contains only definitions, whitespace,
@@ -447,7 +771,7 @@ build succeeds, and the comment looks harmless; the symptom is an empty page.
 The exact base-template conditions are documented under
 [template types](https://gohugo.io/templates/types/).
 
-### 3.4 The dot is an explicit context value
+### 4.4 The dot is an explicit context value
 
 Go templates are lexically terse but context-sensitive. `.` is the current
 value, and `range` or `with` changes it:
@@ -484,7 +808,7 @@ Inside that partial, `.cover` exists; page methods such as `.RelPermalink` do
 not. This is desirable when it narrows coupling. Passing the whole page is
 appropriate when the component is genuinely page-aware.
 
-### 3.5 Partials, views, and render hooks solve different dispatch problems
+### 4.5 Partials, views, and render hooks solve different dispatch problems
 
 Use these mechanisms deliberately:
 
@@ -516,6 +840,8 @@ rendering is concurrent, and initial cached calls may execute more than once;
 do not use cached partial execution as a once-only side effect
 ([cached partials](https://gohugo.io/functions/partials/includecached/)).
 
+<span id="exercise-3"></span>
+
 ### Exercise 3 — predict the override
 
 The Green Horizon theme supplies
@@ -524,6 +850,8 @@ The Green Horizon theme supplies
 one the theme's `home.html` call renders. Now suppose the project instead adds
 `layouts/campaigns/page.html`: which routes change, and does the theme's base
 still apply?
+
+[Worked answer](#answer-3)
 
 ### A useful question for an implementation agent
 
@@ -535,9 +863,9 @@ A strong answer uses current layout paths and evidence from a minimal build. A
 weak answer cites “Hugo convention” or changes several files until the page
 looks right without explaining dispatch.
 
-## 4. Treat templates as queries over a build graph
+## 5. Treat templates as queries over a build graph
 
-### 4.1 Query pages instead of duplicating indexes
+### 5.1 Query pages instead of duplicating indexes
 
 On Green Horizon's home page:
 
@@ -558,7 +886,7 @@ default page order may appear stable until dates or weights change. Specify
 whether campaigns sort by editorial weight, urgency, start date, title, or a
 separate curated feature list. Then verify the produced order.
 
-### 4.2 Choose the data scope that matches ownership
+### 5.2 Choose the data scope that matches ownership
 
 Hugo exposes several structured-data paths:
 
@@ -577,7 +905,7 @@ tree is loaded for the build, whereas resources can be scoped and transformed
 where used. A huge catalogue placed under `data/` because “JSON belongs there”
 may consume memory needlessly and loses the resource pipeline's cache model.
 
-### 4.3 Remote data creates a distributed build
+### 5.3 Remote data creates a distributed build
 
 The current error-aware pattern is:
 
@@ -622,7 +950,7 @@ output → promote`. That makes API recovery independent from template debugging
 Direct fetching inside Hugo may be reasonable for a low-risk public API when
 the freshness and failure policies are explicit.
 
-### 4.4 Static projection versus live application
+### 5.4 Static projection versus live application
 
 Consider three photo behaviours:
 
@@ -637,7 +965,7 @@ Consider three photo behaviours:
 “Jamstack” does not erase these distinctions. It moves an operation to build
 time only when snapshot semantics are acceptable.
 
-### 4.5 Mutable template state is scoped and concurrent
+### 5.5 Mutable template state is scoped and concurrent
 
 Prefer values flowing through pipelines and partial interfaces. When accumulation
 is necessary, Hugo offers local scratch state, page `Store`, site `Store`, and a
@@ -651,6 +979,8 @@ Do not implement cross-page validation by appending to a global store and
 assuming a final template sees a deterministic order. Prefer a query over the
 completed page graph, an adapter-level check, or a separate validation step.
 
+<span id="exercise-4"></span>
+
 ### Exercise 4 — choose a failure policy
 
 The public photo API is occasionally unavailable for five minutes. Albums must
@@ -658,6 +988,8 @@ never disappear merely because deployment coincides with an outage, but a
 deleted album must be removed within 24 hours. Design the input and cache policy,
 including what artefact proves which snapshot was deployed and when the build
 must fail.
+
+[Worked answer](#answer-4)
 
 ### A useful question for an implementation agent
 
@@ -669,9 +1001,9 @@ A strong answer uses current `try` semantics, separates HTTP and file-cache
 policy, and tests the decision table. A weak answer merely wraps the call in
 `with`, silently turning all missing data into an empty page.
 
-## 5. Build an asset pipeline, not a copy directory
+## 6. Build an asset pipeline, not a copy directory
 
-### 5.1 Four resource origins
+### 6.1 Four resource origins
 
 Do not collapse these into “files Hugo serves”:
 
@@ -694,7 +1026,7 @@ intended only as input to rendered HTML, configure the bundle's resource build
 behaviour or place sensitive source data elsewhere. Never assume that “the
 template only reads it” means “Hugo will not publish it”. Inspect the output.
 
-### 5.2 CSS and JavaScript are dependency pipelines
+### 6.2 CSS and JavaScript are dependency pipelines
 
 Both fixtures obtain CSS as a global resource, minify it, fingerprint it, and
 emit Subresource Integrity metadata:
@@ -722,7 +1054,7 @@ is specifically needed
 ([Linux installation and editions](https://gohugo.io/installation/linux/),
 [module version settings](https://gohugo.io/configuration/module/)).
 
-### 5.3 Let the owner of an image own the expensive transformation
+### 6.3 Let the owner of an image own the expensive transformation
 
 For local editorial images, a page bundle plus Hugo processing is powerful:
 
@@ -762,7 +1094,7 @@ Whichever component transforms images should provide:
 - cache and invalidation behaviour; and
 - a metadata/privacy policy.
 
-### 5.4 Caches are acceleration, not authority
+### 6.4 Caches are acceleration, not authority
 
 Hugo has file caches for assets, images, remote resources, modules, and other
 work. `hugo build --gc` removes expired or unused cache entries; it does not
@@ -771,6 +1103,8 @@ clean stale files from the publish directory
 a useful diagnostic when an incremental result is suspect, but repeatedly
 deleting caches without isolating the key or dependency hides the cause.
 
+<span id="exercise-5"></span>
+
 ### Exercise 5 — review an image proposal
 
 An agent proposes that Lens Vault should fetch every `original_url` with
@@ -778,6 +1112,8 @@ An agent proposes that Lens Vault should fetch every `original_url` with
 the results. The backend already exposes immutable public renditions at those
 sizes and keeps originals private. Review the proposal for ownership, security,
 build cost, failure behaviour, and cache invalidation.
+
+[Worked answer](#answer-5)
 
 ### A useful question for an implementation agent
 
@@ -789,9 +1125,9 @@ A strong answer includes observed paths, dimensions or hashes, dependency/tool
 versions, and clean-build evidence. A weak answer calls everything “static” and
 does not inspect whether source data or originals were published accidentally.
 
-## 6. Design theme boundaries
+## 7. Design theme boundaries
 
-### 6.1 A theme is a component layer, not a coat of paint
+### 7.1 A theme is a component layer, not a coat of paint
 
 A Hugo theme can contribute:
 
@@ -821,7 +1157,7 @@ That power is why theme evaluation should start from contracts:
 
 A screenshot proves almost none of this.
 
-### 6.2 Override one seam before forking the whole theme
+### 7.2 Override one seam before forking the whole theme
 
 Hugo combines the project and themes/components by precedence. The project is
 first; configured theme components follow from left to right. For layouts,
@@ -857,7 +1193,7 @@ upstream changes to that file. Record why it exists and compare it when
 upgrading the theme. Avoid copying a template merely to change text or colour
 when the theme exposes a suitable parameter or CSS custom property.
 
-### 6.3 Choose a customisation strategy by change pressure
+### 7.3 Choose a customisation strategy by change pressure
 
 Use the least coupled strategy that expresses the design honestly:
 
@@ -881,7 +1217,7 @@ theme that already supplies accessible navigation, internationalisation, SEO,
 and a compatible design system may remove years of incidental work. Count
 assumption fit and maintenance evidence, not template files.
 
-### 6.4 Theme components compose local layers
+### 7.4 Theme components compose local layers
 
 A project can use multiple local themes:
 
@@ -903,7 +1239,7 @@ own `baseof.html`, the same parameters, CSS reset, or navigation model. Theme
 components work best when designed around narrow, documented contribution
 points.
 
-### 6.5 Hugo Modules add versioned distribution and mounts
+### 7.5 Hugo Modules add versioned distribution and mounts
 
 Hugo Modules use Go Modules for recursively versioned Git dependencies. They
 add checksums, a dependency graph, updates, vendoring, and arbitrary mounts. A
@@ -940,7 +1276,7 @@ Mounts are excellent for presenting a clean virtual structure. They can also
 make ownership invisible. Review `hugo config mounts` and trace a winning file
 back to its physical source before editing.
 
-### 6.6 Configuration merging is deliberately constrained
+### 7.6 Configuration merging is deliberately constrained
 
 Project configuration has precedence over themes and modules. `_merge` can
 select `none`, `shallow`, or `deep` behaviour for supported maps. Slices cannot
@@ -954,7 +1290,7 @@ to collide; `params.organisationHeader.enabled` communicates ownership. Treat a
 theme's configuration schema like a public API: document defaults, validate
 required values where possible, and make unsupported combinations fail visibly.
 
-### 6.7 How to inspect an inherited theme
+### 7.7 How to inspect an inherited theme
 
 Before directing a change, establish:
 
@@ -971,6 +1307,8 @@ Then classify the requested change as configuration, an additive project file,
 an exact override, a reusable component, or a fork. This turns “customise the
 theme” into a bounded engineering decision.
 
+<span id="exercise-6"></span>
+
 ### Exercise 6 — choose the theme boundary
 
 Green Horizon wants a shared accessibility-tested navigation component across
@@ -979,6 +1317,8 @@ theme also supplies a navigation partial, but its DOM is unsuitable. Compare an
 exact override in every project, a narrow shared component placed before each
 base theme, and a fork of every theme. What compatibility contract would the
 shared component need?
+
+[Worked answer](#answer-6)
 
 ### A useful question for an implementation agent
 
@@ -990,9 +1330,9 @@ A strong answer minimises shadowed surface while naming the contract it accepts.
 A weak answer copies the entire theme into the project because that makes the
 immediate edit easy.
 
-## 7. Publish more than web pages
+## 8. Publish more than web pages
 
-### 7.1 One page can have several outputs
+### 8.1 One page can have several outputs
 
 Lens Vault defines a custom JSON format and enables it for home:
 
@@ -1044,7 +1384,7 @@ starting time. It communicates freshness, but it also breaks
 content-addressed comparisons on every build. An alternative is the immutable
 snapshot's source timestamp or digest. Choose which truth consumers need.
 
-### 7.2 Render hooks turn Markdown constructs into site policy
+### 8.2 Render hooks turn Markdown constructs into site policy
 
 A link render hook can reject broken internal references, mark external links,
 or add language-aware behaviour. An image hook can find a page resource,
@@ -1062,7 +1402,7 @@ emit file type, size, and review date derived from the resource. That improves
 accessibility and traceability without requiring every editor to remember
 presentation markup.
 
-### 7.3 Multilingual output is another site dimension
+### 8.3 Multilingual output is another site dimension
 
 Hugo can relate translations by filename suffix, language-specific content
 directories, or `translationKey`, and can generate single-host or multihost
@@ -1083,7 +1423,7 @@ Translation is not string substitution over finished HTML. Decide:
 A theme advertised as multilingual should demonstrate navigation, taxonomies,
 dates, structured data, and alternate links—not merely a translated button.
 
-### 7.4 Headless bundles separate storage from routing
+### 8.4 Headless bundles separate storage from routing
 
 Build options independently control whether a page is listed, rendered, and
 whether its resources publish. A headless bundle remains retrievable to
@@ -1097,6 +1437,8 @@ it. Headless content loses its own route and can create accessibility, preview,
 and editorial-understanding problems. Use it when the content's identity is
 truly as an embedded resource or projection.
 
+<span id="exercise-7"></span>
+
 ### Exercise 7 — design a partner output
 
 Green Horizon's coalition partners need a JSON feed of active public campaigns,
@@ -1104,6 +1446,8 @@ including stable ID, URL, title, issues, places, and last evidence-review date.
 Draft the acceptance criteria. Which page data must not leak? What should happen
 when one evidence file is malformed? How will consumers learn about a schema
 change?
+
+[Worked answer](#answer-7)
 
 ### A useful question for an implementation agent
 
@@ -1114,9 +1458,9 @@ A strong answer validates the generated JSON independently and versions or
 otherwise governs the schema. A weak answer says `jsonify .` and exposes the
 entire internal page object or parameter map.
 
-## 8. Operate and diagnose the build
+## 9. Operate and diagnose the build
 
-### 8.1 Development server, production build, and deployment are distinct
+### 9.1 Development server, production build, and deployment are distinct
 
 `hugo server` watches inputs, rebuilds, serves from a development environment,
 and injects LiveReload. It is trusted local tooling, not a production server.
@@ -1146,7 +1490,7 @@ Google Cloud Storage, and requires a deploy edition. It does not replace a
 general deployment design
 ([deploy with Hugo](https://gohugo.io/host-and-deploy/deploy-with-hugo/)).
 
-### 8.2 A diagnostic sequence starts from the symptom
+### 9.2 A diagnostic sequence starts from the symptom
 
 Use evidence to distinguish causes before editing:
 
@@ -1189,7 +1533,7 @@ investigate or report the diagnostic, not to delete a working template.
 Conversely, a noisy false positive is not reason to ignore every warning.
 Reconcile each warning with a minimal case and observed output.
 
-### 8.3 Performance evidence has Hugo-specific traps
+### 9.3 Performance evidence has Hugo-specific traps
 
 Template metrics can identify frequently called or expensive templates and can
 suggest partial caching. A 100% cacheability hint only says observed rendered
@@ -1203,7 +1547,7 @@ cached partial with incomplete keys is worse than a fast correct build. For
 large photo sites, measure page count, API snapshot size, image transformation
 count, peak memory, warm and cold build time, and output size separately.
 
-### 8.4 Know which inputs are trusted
+### 9.4 Know which inputs are trusted
 
 Hugo documents layouts, assets, archetypes, cached resources, data,
 translations, and static files as trusted. Content and content-adapter output
@@ -1232,7 +1576,7 @@ security fixes, so the tutorial pins it rather than treating all 0.x versions
 as interchangeable
 ([v0.168.0 release](https://github.com/gohugoio/hugo/releases/tag/v0.168.0)).
 
-### 8.5 Upgrade with deprecations promoted to evidence
+### 9.5 Upgrade with deprecations promoted to evidence
 
 Run an upgrade in isolation, read the intervening release notes, perform a clean
 production build, and resolve deprecations rather than suppressing them. Hugo's
@@ -1257,12 +1601,16 @@ Do not mechanically modernise unrelated code during a theme change. Establish
 the current warning baseline, keep the upgrade diff reviewable, and test the
 routes and outputs whose lookup may have changed.
 
+<span id="exercise-8"></span>
+
 ### Exercise 8 — diagnose rather than thrash
 
 After a theme upgrade, campaign pages use the generic visual treatment but home
 still looks correct. The content files and URLs have not changed. List at least
 four plausible causes, the evidence that distinguishes them, and the smallest
 safe recovery if a production deadline is near.
+
+[Worked answer](#answer-8)
 
 ### A useful question for an implementation agent
 
@@ -1275,9 +1623,9 @@ versions/configuration, and verifies representative output after the change. A
 weak answer repeatedly clears caches or copies templates until the appearance
 returns.
 
-## 9. Review and verify a change
+## 10. Review and verify a change
 
-### 9.1 A successful build proves only a subset
+### 10.1 A successful build proves only a subset
 
 Exit status zero establishes that Hugo parsed enough configuration, content,
 templates, and resources to complete. It does not establish that:
@@ -1294,7 +1642,7 @@ templates, and resources to complete. It does not establish that:
 
 Verification should follow the same layers as the system.
 
-### 9.2 A proportionate evidence stack
+### 10.2 A proportionate evidence stack
 
 1. **Input and dependency checks** establish the Hugo version, theme/module
    versions, checksums, toolchain, schema, and configuration.
@@ -1319,7 +1667,7 @@ complete site test suite
 ([site audit](https://gohugo.io/troubleshooting/audit/)). The exact external
 tools should fit the site's risk and stack.
 
-### 9.3 Test invariants, not implementation trivia
+### 10.3 Test invariants, not implementation trivia
 
 Good acceptance checks for Green Horizon include:
 
@@ -1348,7 +1696,7 @@ invariants explain impact and survive harmless formatting changes. Combine
 structural assertions with a small number of visual regressions where design
 matters.
 
-### 9.4 Review plausible generated mistakes
+### 10.4 Review plausible generated mistakes
 
 Watch specifically for code that looks idiomatic but rests on the wrong model:
 
@@ -1365,7 +1713,7 @@ Watch specifically for code that looks idiomatic but rests on the wrong model:
 | Relies on global mutable template state order | Rendering is concurrent | Repeat/stress build and redesign as graph query |
 | Calls the photo API at browser runtime with build credentials | Moves secrets into the client | Inspect generated JS/network requests |
 
-### 9.5 Decide what to delegate and what to retain
+### 10.5 Decide what to delegate and what to retain
 
 Routine template syntax, CSS implementation, mechanical content migration,
 fixture generation, and check scripting are good candidates for delegation once
@@ -1385,6 +1733,8 @@ Retain or explicitly approve:
 This is not because templates are mysterious. It is because these decisions
 determine which system owns truth and what future changes cost.
 
+<span id="exercise-9"></span>
+
 ### Exercise 9 — review the whole proposal
 
 An agent proposes a photo site that imports a popular gallery theme as an
@@ -1392,6 +1742,8 @@ unpinned Git submodule, puts a long-lived API token in `params`, fetches albums
 directly during every Hugo render, caches the gallery partial without variant
 keys, and deploys `public/` in place after `hugo server` looks correct. Rank the
 problems by impact and specify the minimum evidence required before release.
+
+[Worked answer](#answer-9)
 
 ### A useful question for an implementation agent
 
@@ -1402,12 +1754,16 @@ A strong answer separates build, semantic, browser, and deployment evidence and
 is candid about limits. A weak answer offers only the build transcript and a
 screenshot.
 
-## 10. Worked reasoning
+## 11. Worked reasoning
 
 Try the exercises before reading this section. These are reasoned solutions,
 not unique designs.
 
+<span id="answer-1"></span>
+
 ### Exercise 1
+
+[Back to exercise 1](#exercise-1)
 
 Hugo can fetch or consume the set of publishable albums, create routes and
 indexes, and publish a snapshot. It cannot receive an authenticated edit or
@@ -1419,7 +1775,11 @@ site identifies its snapshot; failed rebuilds leave the previous complete site
 live.” That contract implies a trigger, maximum build/queue time, monitoring,
 and atomic promotion.
 
+<span id="answer-2"></span>
+
 ### Exercise 2
+
+[Back to exercise 2](#exercise-2)
 
 An `events/` section is a strong default because events have independent
 identity, routes, cancellation state, and queries across campaigns. Each event
@@ -1432,7 +1792,11 @@ inside campaigns makes campaign-local ownership convenient but complicates an
 all-events calendar and moving an event between campaigns. Choose it only if
 campaign ownership dominates and stable URLs survive moves.
 
+<span id="answer-3"></span>
+
 ### Exercise 3
+
+[Back to exercise 3](#exercise-3)
 
 The project partial wins because it has the same relative component path at
 higher precedence, even though the call originates in a theme template. Adding
@@ -1441,7 +1805,11 @@ selects the campaign family; home and campaign section do not select it. The
 theme's `baseof.html` can still wrap it if the new page template contains one or
 more definitions and nothing else except whitespace and template comments.
 
+<span id="answer-4"></span>
+
 ### Exercise 4
+
+[Back to exercise 4](#exercise-4)
 
 Keep a validated last-known-good snapshot as an immutable build input with
 fetch time, source revision/ETag, schema version, and digest. A scheduled or
@@ -1453,7 +1821,11 @@ never replaces the known-good snapshot. The deployment manifest records the
 snapshot digest. Test initial absence, timeout, 404, invalid schema, reuse within
 the window, and expiry beyond it.
 
+<span id="answer-5"></span>
+
 ### Exercise 5
+
+[Back to exercise 5](#exercise-5)
 
 Reject the proposed transformation. It asks the build to access private
 originals, duplicates an authoritative rendition pipeline, multiplies network
@@ -1463,7 +1835,11 @@ backend contract. If Hugo needs editorial crops unavailable from the backend,
 make that a deliberate new backend rendition or a bounded local-resource case;
 do not broaden access to all originals by default.
 
+<span id="answer-6"></span>
+
 ### Exercise 6
+
+[Back to exercise 6](#exercise-6)
 
 Six copied overrides create six upgrade points. Six theme forks are broader
 still. A narrow navigation component placed before each base theme is attractive
@@ -1474,7 +1850,11 @@ do not hard-wire incompatible header structure. Where they do, a one-file
 bridge override per theme may call the shared component; this keeps base-theme
 forks unnecessary.
 
+<span id="answer-7"></span>
+
 ### Exercise 7
+
+[Back to exercise 7](#exercise-7)
 
 Define a versioned public record schema and deterministic sort, preferably by a
 stable ID. Assert that only active, publishable campaigns appear; referenced
@@ -1485,7 +1865,11 @@ internal owners, drafts, embargo dates, notes, source paths, and any credentials
 Publish schema/version documentation and use consumer-driven compatibility
 tests or an explicit versioned endpoint for breaking changes.
 
+<span id="answer-8"></span>
+
 ### Exercise 8
+
+[Back to exercise 8](#exercise-8)
 
 Plausible causes include: the upgrade moved from legacy to current layout
 paths; campaign `type` now selects a different family; a more-specific theme
@@ -1497,7 +1881,11 @@ rebuild from the last known-good inputs. A narrow exact override is acceptable
 only after identifying the new winning path; copying the whole old theme is not
 the smallest safe recovery.
 
+<span id="answer-9"></span>
+
 ### Exercise 9
+
+[Back to exercise 9](#exercise-9)
 
 The long-lived token in published or theme-visible configuration is highest
 impact because trusted theme code may read it and generated artefacts may leak
@@ -1510,7 +1898,7 @@ outside publishable config, a pinned/reviewed dependency, one validated snapshot
 per build, correct cache variants or no partial cache, a clean strict production
 build, structural/privacy/browser tests, and atomic promotion with rollback.
 
-## 11. Fixture guide
+## 12. Fixture guide
 
 The examples live beside this tutorial:
 
@@ -1567,7 +1955,7 @@ reserved `.example` domain. They test generated markup, not image delivery or
 authenticated behaviour. See [the verification record](verification.md) for
 what was executed and what remains unproved.
 
-## 12. Compact field reference
+## 13. Compact field reference
 
 ### Choose the mechanism
 

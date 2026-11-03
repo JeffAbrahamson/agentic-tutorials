@@ -9,4 +9,4 @@ Start with [the tutorial](tutorial.md). The two small, runnable sites under
   content adapter and project-owned templates.
 
 The fixtures target Hugo 0.168.0. Build commands and expected evidence are in
-the tutorial's [fixture guide](tutorial.md#11-fixture-guide).
+the tutorial's [fixture guide](tutorial.md#12-fixture-guide).

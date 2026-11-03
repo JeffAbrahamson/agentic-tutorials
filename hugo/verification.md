@@ -1,7 +1,7 @@
 # Verification record
 
 Target: Hugo 0.168.0 standard edition on Linux amd64; research and execution on
-21 October 2026.
+21 October 2026, and on 3 November 2026 for the reading primer.
 
 ## Technical sources
 
@@ -60,6 +60,20 @@ In scratch copies, a mount using `lang` failed the 0.168.0 build with
 "deprecated … subsequently removed"; a page template with an HTML comment
 before its `define` produced a two-byte page; `.Site.Data` and
 `resources.PostProcess` logged deprecation warnings; `.Scratch` logged none.
+
+## Reading primer, 3 November 2026
+
+The parts of chapter 1 listed here ran under the same Hugo 0.168.0 archive, with its digest matched again, in scratch sites. Observations:
+
+- The hello site built with the three files shown, and `public/index.html` matched the output shown. The build also wrote `index.xml`, `sitemap.xml` and taxonomy feeds, and logged the `WARN` shown.
+- A second site exercised `baseof.html`, `home.html`, `section.html`, `page.html`, `taxonomy.html`, `term.html`, `_partials/`, `_shortcodes/` and `_markup/`, plus a type-specific `posts/page.html`. Page kinds, `slug`, a draft's exclusion and `--buildDrafts`, and `.Resources` behaved as described.
+- `if`, `range` with `else`, `with`, `:=` and `=`, `-` trimming, `$`, `dict`, `slice`, `index`, `default`, `where`, `first`, `sort`, pipes, `partial` with and without `dict`, `return`, `partialCached`, `.Store`, `try` (on a refused connection) and `block` with `define` gave the expected output. `{{ "<b>" }}` printed `&lt;b&gt;`, and `safeHTML` removed the escaping.
+- `{{< >}}` passed its output through with the inner `*text*` unrendered. `{{% %}}` output had its `<aside>` replaced by `<!-- raw HTML omitted -->`.
+- `errorf` and `.Nope` failed the build, with rendering continuing past `errorf`; `warnf` logged `WARN` and built; a missing resource piped into `minify` failed the build; and `.Params.nope` printed nothing. `hugo env`, `hugo list all` and `hugo config` ran. The totals table is shortened from a real run, whose `Pages` count of 13 exceeded the six content files.
+
+**Not run, and following the documentation:** `hugo server` and its environment default, `hugo mod`, `--gc`, `{{ T }}`, `relref`, `publishDate`, `expiryDate`, `aliases`, `cascade`, `.Plain`, `{{ template }}`, menus, pagination, `.Translations`, `markdownify`, `.RenderString`, `relURL`, `append` and `else with` as a form. `single.html`, `list.html`, `all.html`, `_default/`, `partials/` and `headless` also built on this binary. `hugo config mounts` and `--panicOnWarning` ran on 21 October, as recorded above.
+
+Exercise and answer links were checked with Pandoc's GitHub-flavoured reader: each of the 18 links has a target. Each answer heading's automatic id `exercise-N` duplicates its exercise's span. The span comes first in the document, so it is the one a browser uses, and this was not followed on GitHub on this date.
 
 ## Publication checks
 

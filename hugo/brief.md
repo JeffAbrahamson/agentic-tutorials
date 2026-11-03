@@ -34,13 +34,13 @@ fixture uses project-owned templates, illustrating a small theme architecture
 from scratch. Both are teaching fixtures, not visual designs for production.
 
 **Scope and progression.** Allow 2–3 hours including predictions, design
-reviews, and worked answers. Start from the build graph and Hugo's content
+reviews, and worked answers. Open with a reading primer, then start from the build graph and Hugo's content
 model, then cover template dispatch and scope, data and resource pipelines,
 themes and modules, multiple outputs, operational boundaries, diagnosis, and
 verification. Theme implementation syntax is subordinate to understanding the
 available architecture and evidence needed to direct a team.
 
-**Target.** Hugo 0.168.0 on Linux, researched 21 October 2026. Examples use only
+**Target.** Hugo 0.168.0 on Linux, researched 21 October 2026; reading primer 3 November 2026. Examples use only
 features available in any current edition. The former Extended-edition check is
 disabled in Hugo 0.153.2 and later; embedded LibSass is deprecated, so a site
 that needs modern Sass should treat Dart Sass as a separate toolchain
@@ -54,7 +54,7 @@ verification record, and runnable examples live under the single root entry
 **Assumptions and boundaries.** No particular CMS, photo API, deployment
 platform, traffic profile, multilingual requirement, or existing theme has been
 specified. The tutorial therefore teaches how those facts change a design
-rather than inventing them. It does not teach HTML, CSS, Go template syntax,
+rather than inventing them. Its reading primer teaches recognising Go template notation; it does not teach writing it, or HTML, CSS,
 graphic design, CMS operation, client-side application development, or provider-
 specific deployment in depth. Remote API calls are discussed and shown as a
 bounded pattern; the checked fixtures stay deterministic and offline.
