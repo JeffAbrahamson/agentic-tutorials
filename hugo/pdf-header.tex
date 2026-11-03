@@ -1,0 +1,21 @@
+\usepackage{fvextra}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\AtBeginDocument{\RaggedRight\sloppy}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere,fontsize=\small}
+\setlength{\emergencystretch}{2em}
+\usepackage{etoolbox}
+\usepackage{needspace}
+\pretocmd{\section}{\Needspace{7\baselineskip}}{}{}
+\apptocmd{\maketitle}{\clearpage}{}{}
+\apptocmd{\tableofcontents}{\clearpage}{}{}
+% Latin Modern Mono has no box-drawing characters, which the diagrams use.
+% DejaVu Sans Mono supplies them, scaled to Latin Modern Mono's advance width
+% so that columns stay aligned.
+\usepackage{newunicodechar}
+\newfontfamily\boxdrawing{DejaVu Sans Mono}[Scale=0.8718]
+\newunicodechar{─}{{\boxdrawing ─}}
+\newunicodechar{│}{{\boxdrawing │}}
+\newunicodechar{├}{{\boxdrawing ├}}
+\newunicodechar{└}{{\boxdrawing └}}
+\newunicodechar{┼}{{\boxdrawing ┼}}

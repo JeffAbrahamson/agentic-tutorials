@@ -75,6 +75,8 @@ The parts of chapter 1 listed here ran under the same Hugo 0.168.0 archive, with
 
 Exercise and answer links were checked with Pandoc's GitHub-flavoured reader: each of the 18 links has a target. Each answer heading's automatic id `exercise-N` duplicates its exercise's span. The span comes first in the document, so it is the one a browser uses, and this was not followed on GitHub on this date.
 
+`make -C hugo` built the 59-page PDF with no missing-character warnings; DejaVu Sans Mono supplies the box-drawing characters at Latin Modern Mono's width. Its links were followed from each link annotation to the text at its destination: 9 links each way, all landing on the right heading. Sample pages, including the first diagram and the worked answers, were rendered and inspected. Some long code lines, and comments in two directory-tree diagrams, wrap with a continuation mark.
+
 ## Publication checks
 
 - Pandoc parsed the tutorial as GitHub-flavoured Markdown and rendered it to

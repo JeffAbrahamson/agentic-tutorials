@@ -47,9 +47,10 @@ that needs modern Sass should treat Dart Sass as a separate toolchain
 dependency. Go and Git are needed for remote Hugo Modules, not for these local
 fixtures.
 
-**Format.** Markdown explicitly confirmed. The tutorial, brief, outline,
-verification record, and runnable examples live under the single root entry
-`hugo/`.
+**Format.** Markdown explicitly confirmed, with a PDF built from it for uniformity
+with the other tutorials: Pandoc and XeLaTeX, Latin Modern Roman 12 pt body, Latin
+Modern Mono code, 160 × 230 mm pages. The tutorial, brief, outline, verification
+record, PDF and runnable examples live under the single root entry `hugo/`.
 
 **Assumptions and boundaries.** No particular CMS, photo API, deployment
 platform, traffic profile, multilingual requirement, or existing theme has been
