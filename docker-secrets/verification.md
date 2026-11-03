@@ -107,6 +107,8 @@ Chapter 1's Docker and Compose examples ran on Engine 29.9.2 with Compose 5.6.1 
 
 Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 12 links each way, all landing on the right heading.
 
+On 3 November 2026, chapter and section numbers, the title, subtitle and date moved into the Markdown so that it reads on GitHub. Comparing the rebuilt PDF's text with the previous build showed only heading punctuation and consequent line breaks. All links were traced again and land on the right headings.
+
 ## Not verified
 
 **Not run:**

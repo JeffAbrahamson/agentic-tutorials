@@ -1,8 +1,8 @@
 # Docker and secrets
 
-The tutorial is [docker-secrets.pdf](docker-secrets.pdf), a 2–3 hour read with exercises and worked answers. Chapter 1 is a reading primer for Dockerfiles, Compose files, command output, SOPS files and OpenBao policies. Part 1 is a short tour of Docker beyond build and run: the image and container model, BuildKit, Compose, hardening and inspection. Part 2 is about secret management. It covers why a private repository is the wrong model for secrets, leak paths and secret mechanisms in Docker, encrypted files in git (SOPS, age, ansible-vault, git-crypt), secret services (OpenBao, Vault, cloud and SaaS managers), delivery and identity, Kubernetes as an optional branch, and choosing and migrating.
+Read [docker-secrets.pdf](docker-secrets.pdf) or [tutorial.md](tutorial.md), a 2–3 hour read with exercises and worked answers. Chapter 1 is a reading primer for Dockerfiles, Compose files, command output, SOPS files and OpenBao policies. Part 1 is a short tour of Docker beyond build and run: the image and container model, BuildKit, Compose, hardening and inspection. Part 2 is about secret management. It covers why a private repository is the wrong model for secrets, leak paths and secret mechanisms in Docker, encrypted files in git (SOPS, age, ansible-vault, git-crypt), secret services (OpenBao, Vault, cloud and SaaS managers), delivery and identity, Kubernetes as an optional branch, and choosing and migrating.
 
-The source is [tutorial.md](tutorial.md). [brief.md](brief.md) and [outline.md](outline.md) record its scope and teaching assumptions. The tutorial targets Docker Engine 29.9 with Compose v5.6, SOPS 3.13.3 with age 1.3.2, and OpenBao 2.7.1.
+[brief.md](brief.md) and [outline.md](outline.md) record its scope and teaching assumptions. The tutorial targets Docker Engine 29.9 with Compose v5.6, SOPS 3.13.3 with age 1.3.2, and OpenBao 2.7.1.
 
 ## Build the PDF
 

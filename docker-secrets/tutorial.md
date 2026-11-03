@@ -1,12 +1,10 @@
----
-title: 'Docker and secrets'
-subtitle: 'Beyond build and run, and choosing how secrets are stored, delivered and revoked'
-date: '21 October 2026'
----
+# Docker and secrets
 
-<span class="unnumbered"></span>
+*Beyond build and run, and choosing how secrets are stored, delivered and revoked*
 
-# Scope and prerequisites
+21 October 2026
+
+## Scope and prerequisites
 
 This tutorial opens with a reading primer in chapter 1, and then has two parts
 of unequal size. Part 1 (chapters 2–4) is a short tour of what Docker does beyond building,
@@ -42,7 +40,7 @@ them.
 
 \newpage
 
-# Read Docker, Compose and secret tools
+## 1. Read Docker, Compose and secret tools
 
 This chapter is a phrasebook: enough to recognise each part of a Dockerfile, a
 Compose file, a command's output and an encrypted secret file, and to know what
@@ -50,7 +48,7 @@ to look up. Most items get a sentence and a small example, usually a fragment.
 Why things behave as they do comes in later chapters, so skim this now and
 return when a construct looks unfamiliar.
 
-## Hello, world
+### 1.1 Hello, world
 
 A **Dockerfile** is a recipe for an **image**. An image is a stored template and
 a **container** is a process started from one, so one image can back many
@@ -71,7 +69,7 @@ the build may copy.
 `.dockerignore` lists what to leave out of it. `--rm` deletes the container when
 it exits.
 
-## Image names
+### 1.2 Image names
 
 A name has the form `registry/namespace/repository:tag@digest`, and most parts
 can be omitted:
@@ -86,7 +84,7 @@ alpine@sha256:be265606...     exact content
 A **tag** is a movable label, and `latest` is only the default tag, not a promise
 of newness. A **digest** is the SHA-256 of the content, so it cannot move.
 
-## Dockerfile instructions
+### 1.3 Dockerfile instructions
 
 Each instruction is one line, by convention in capitals; `\` continues a line
 and `#` starts a comment.
@@ -145,7 +143,7 @@ if [ "$VARIANT" = small ]; then echo small > size.txt; fi
 EOT
 ```
 
-## Running containers
+### 1.4 Running containers
 
 | Command | Meaning |
 | --- | --- |
@@ -169,7 +167,7 @@ docker exec -it web sh
 the host's `site` directory appears read-only (`:ro`) at the inner path. `-e` sets
 an environment variable. `-it` attaches a terminal.
 
-## Compose files
+### 1.5 Compose files
 
 A **Compose file**, normally `compose.yaml`, declares containers, networks and
 volumes that belong together. Each entry under `services:` is a kind of container.
@@ -246,7 +244,7 @@ service names:
 | `docker compose config` | Print the merged file with variables replaced |
 | `docker compose down` | Remove containers and networks, keeping named volumes |
 
-## Reading output
+### 1.6 Reading output
 
 `docker ps` shows one line per container (here with only two of its columns):
 
@@ -285,7 +283,7 @@ by the shell during the build. `${VAR}` in other Dockerfile instructions, such a
 `FROM` and `COPY`, is expanded by the Dockerfile parser. `{{ .Field }}` is a Go
 template, in `docker -f` and in OpenBao Agent's templates below.
 
-## Look-alikes, and why both exist
+### 1.7 Look-alikes, and why both exist
 
 **Exec form and shell form.** `CMD ["sleep", "30"]`, with JSON brackets, runs the
 program directly. `CMD sleep 30` is stored as `/bin/sh -c "sleep 30"`, which gives
@@ -345,7 +343,7 @@ present, is merged in automatically.
 explains the difference, which is a frequent cause of secrets ending up in the
 wrong place.
 
-## Where things live
+### 1.8 Where things live
 
 | Path | What it is |
 | --- | --- |
@@ -356,7 +354,7 @@ wrong place.
 | `/run/secrets/NAME` | Where a secret appears inside a container, by convention |
 | `compose.yaml`, `.env` | In the project directory |
 
-## Encrypted files: SOPS and age
+### 1.9 Encrypted files: SOPS and age
 
 **age** is an encryption tool. Its public key, a **recipient**, starts `age1`; its
 private key, an **identity**, starts `AGE-SECRET-KEY-1` and is what must never leak.
@@ -397,7 +395,7 @@ often after a `!vault |` tag, is ansible-vault ciphertext. A line such as
 `secretfile filter=git-crypt diff=git-crypt` in `.gitattributes` means git-crypt
 encrypts that path.
 
-## Secret services: OpenBao and Vault
+### 1.10 Secret services: OpenBao and Vault
 
 OpenBao's command is `bao`. It was forked from HashiCorp Vault's `vault`, so
 instructions look alike and some names remain: the agent's configuration still has
@@ -458,7 +456,7 @@ template {
 and **TTL** (time to live), **auth method**, **AppRole**, with its **role ID** and
 **secret ID**, and **dynamic credentials**.
 
-## Kubernetes manifests
+### 1.11 Kubernetes manifests
 
 Chapter 10 is optional and mentions a few Kubernetes objects. A manifest is YAML
 with `apiVersion`, `kind`, `metadata` and a body. In a Secret, `data:` values are
@@ -477,7 +475,7 @@ data:
   API_KEY: czNjcmV0
 ```
 
-## Everyday shorthand
+### 1.12 Everyday shorthand
 
 | Term | Meaning |
 | --- | --- |
@@ -491,14 +489,14 @@ data:
 
 \newpage
 
-# What an image and a container really are
+## 2. What an image and a container really are
 
 Day-to-day use of `docker build` and `docker run` works with an image as an
 opaque artefact. Two facts about its structure explain most of part 2: an
 image is a stack of filesystem diffs plus a JSON configuration, and both are
 readable by anyone who has the image.
 
-## An image is layers plus configuration
+### 2.1 An image is layers plus configuration
 
 An image is described by a **manifest** that lists a **configuration** blob
 and an ordered list of **layer** blobs, all addressed by their SHA-256 digest.
@@ -524,7 +522,7 @@ switched on, and the switch hides old images rather than deleting them
 `docker info -f '{{ .DriverStatus }}'` shows `io.containerd.snapshotter.v1`
 when it is in use. The model above holds for both.
 
-## A container is a writable layer, namespaces and cgroups
+### 2.2 A container is a writable layer, namespaces and cgroups
 
 `docker run` asks the daemon, `dockerd`, to create a container. containerd and
 `runc` build it from the image's layers plus a new **writable layer**, place
@@ -548,7 +546,7 @@ Three consequences matter later:
   host ([daemon attack surface](https://docs.docker.com/engine/security/)).
   Membership of the `docker` group is therefore a secret-access decision.
 
-## Seeing it: lab 1
+### 2.3 Seeing it: lab 1
 
 `examples/leaks/Dockerfile.leaky` makes three common mistakes on purpose:
 
@@ -599,7 +597,7 @@ At run time, `docker run -e DB_PASSWORD=…` put the value in three places
 (**observed**): `docker inspect`'s `Config.Env`, `/proc/1/environ` inside the
 container, and the environment of a child process started with `docker exec`.
 
-## Questions for an agent
+### 2.4 Questions for an agent
 
 **Ask:** "Show me every place this image or container stores the value of
 `X`." A good answer names the history, the configuration, specific layers,
@@ -610,7 +608,7 @@ Dockerfile, so it's gone", or "it is only a build argument".
 
 <span id="exercise-1"></span>
 
-## Exercise 1: predict what leaks
+### 2.5 Exercise 1: predict what leaks
 
 For each Dockerfile fragment, say whether the secret value can be recovered
 from the final image, and from where.
@@ -625,7 +623,7 @@ from the final image, and from where.
 
 [Worked answer](#answer-1)
 
-# Building beyond `docker build .`
+## 3. Building beyond `docker build .`
 
 BuildKit has been the default builder on Linux since Engine 23; the legacy
 builder is deprecated
@@ -634,7 +632,7 @@ executes a build as a dependency graph rather than a sequence, which is what
 makes the features below possible. None of them is needed to build an image;
 each pays off under a specific pressure.
 
-## The `syntax` directive
+### 3.1 The `syntax` directive
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -646,7 +644,7 @@ daemon. Newer options, such as `env=` on secret mounts (frontend 1.10), need
 it on older engines; a build that fails with "unexpected key 'env'" usually
 lacks it. The cost is a network fetch of the frontend image unless cached.
 
-## Multi-stage builds
+### 3.2 Multi-stage builds
 
 ```dockerfile
 FROM golang:1.25 AS build
@@ -667,7 +665,7 @@ the final image, but it is not a secret mechanism: build arguments are still
 recorded in detailed provenance (below) and the earlier stages persist in the
 build cache on the builder.
 
-## Cache mounts
+### 3.3 Cache mounts
 
 ```dockerfile
 RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
@@ -678,7 +676,7 @@ of a layer. Use it when dependency downloads dominate build time. It is a
 build-host optimisation; CI runners that start empty gain nothing unless the
 cache is exported.
 
-## Build secrets and SSH forwarding
+### 3.4 Build secrets and SSH forwarding
 
 The fixed Dockerfile from lab 1:
 
@@ -722,7 +720,7 @@ For cloning private repositories, prefer `RUN --mount=type=ssh` with
 `docker build --ssh default`: the build talks to the host's SSH agent through
 a socket, and the private key never enters the build at all.
 
-## Build checks
+### 3.5 Build checks
 
 `docker build --check .` evaluates lint rules without building and exits
 non-zero on a violation; `# check=error=true` at the top of a Dockerfile makes
@@ -739,7 +737,7 @@ pattern from BuildKit's `dockerfile2llb/validations.go`). `DB_PASSWORD` and
 `GITHUB_TOKEN` are flagged; `DBPASSWORD`, `MYTOKEN` and a secret pasted into a
 `RUN` command line or a `COPY`'d file are not. A clean check is weak evidence.
 
-## Attestations, multi-platform builds and Bake
+### 3.6 Attestations, multi-platform builds and Bake
 
 - **Attestations.** BuildKit can attach SLSA provenance (minimal provenance
   is added by default) and an SBOM (`--sbom=true`) to an image. Provenance in
@@ -751,7 +749,7 @@ pattern from BuildKit's `dockerfile2llb/validations.go`). `DB_PASSWORD` and
 - **Bake.** `docker buildx bake` builds several targets from an HCL, JSON or
   Compose file in parallel. Compose v5 builds through Bake.
 
-## Questions for an agent
+### 3.7 Questions for an agent
 
 **Ask:** "Which build steps need credentials, how does each one receive them,
 and what proves they are absent from the image?" A good answer uses secret or
@@ -763,7 +761,7 @@ secret must take effect.
 
 <span id="exercise-2"></span>
 
-## Exercise 2: review a Dockerfile
+### 3.8 Exercise 2: review a Dockerfile
 
 An agent submits:
 
@@ -784,9 +782,9 @@ sketch the fix.
 
 [Worked answer](#answer-2)
 
-# Running beyond `docker run`
+## 4. Running beyond `docker run`
 
-## Compose v5
+### 4.1 Compose v5
 
 Compose is the declarative layer for "these containers, networks and volumes
 belong together". Its version history is a trap for both people and models:
@@ -799,7 +797,7 @@ Docker describes v5 as functionally identical to v2
 `version:` key in a Compose file is obsolete and only produces a warning. An
 agent that adds `version: "3.8"` is drawing on old examples.
 
-## Where values come from
+### 4.2 Where values come from
 
 Two different mechanisms both look like "environment variables", and
 confusing them is a leading cause of secrets ending up in the wrong place.
@@ -820,7 +818,7 @@ interpolated; `environment` literal values; `env_file`; the image's `ENV`
 interpolated into `environment:` appears in plaintext in its output, and in
 any CI log that runs it. Lab 2 shows this (chapter 6).
 
-## Start order, profiles and overrides
+### 4.3 Start order, profiles and overrides
 
 ```yaml
 services:
@@ -845,7 +843,7 @@ mechanism for per-environment overrides; `include:` instead loads another
 Compose file as its own sub-project with its own relative paths
 ([include](https://docs.docker.com/reference/compose-file/include/)).
 
-## Hardening a container
+### 4.4 Hardening a container
 
 Each of these reduces what a compromised process can do. All are long-standing
 `docker run` flags with Compose equivalents.
@@ -869,7 +867,7 @@ itself is running with root privileges"
 ([rootless](https://docs.docker.com/engine/security/rootless/)). The
 containerd image store is not available with `userns-remap`.
 
-## Inspection as evidence
+### 4.5 Inspection as evidence
 
 | Question | Command |
 | --- | --- |
@@ -883,7 +881,7 @@ containerd image store is not available with `userns-remap`.
 Every one of these reads data that may contain secrets. That is the point of
 part 2: inspection is how you verify, and also how secrets leak.
 
-## Swarm, briefly
+### 4.6 Swarm, briefly
 
 Swarm mode still ships in Engine 29 and SwarmKit is maintained; Docker makes
 no public statement about its future, and Mirantis has committed to
@@ -892,7 +890,7 @@ supporting it through at least 2030
 It matters here only because Docker's best-designed secret mechanism is a
 Swarm feature (chapter 6). Adopting Swarm for that alone is rarely justified.
 
-## Questions for an agent
+### 4.7 Questions for an agent
 
 **Ask:** "For each service, list where every environment variable's value
 comes from, and run `docker compose config` to show me what is resolved."
@@ -903,7 +901,7 @@ added without checking that the image works as the configured user.
 
 <span id="exercise-3"></span>
 
-## Exercise 3: read a Compose file
+### 4.8 Exercise 3: read a Compose file
 
 ```yaml
 services:
@@ -923,13 +921,13 @@ config` output?
 
 [Worked answer](#answer-3)
 
-# Why the repository model breaks
+## 5. Why the repository model breaks
 
 Keeping secrets in a private repository with tightly restricted access is a
 coherent model with a precise flaw. It is worth stating the model carefully,
 because each alternative in later chapters repairs a different part of it.
 
-## What git gets right, and what it assumes
+### 5.1 What git gets right, and what it assumes
 
 For code, git provides history, review, attribution and reproducible
 deployment from a known commit. Access control lives on the remote: who may
@@ -944,7 +942,7 @@ laptops, in CI caches, in backups and in forks. Restricting the remote limits
 who can obtain a copy *from now on*; it says nothing about copies already
 made.
 
-## Access only grows until you rotate
+### 5.2 Access only grows until you rotate
 
 One way to state it precisely: for a secret value $s$, let $A(s)$ be the set
 of principals (people, machines, backups, logs) that have ever been able to
@@ -968,7 +966,7 @@ Three consequences drive the rest of this tutorial:
    access and, with a service, who *fetched* a value. Neither tells you who
    copied it afterwards. Audit narrows uncertainty; it does not remove it.
 
-## The secret lifecycle
+### 5.3 The secret lifecycle
 
 Each model is a set of answers to these stages:
 
@@ -987,7 +985,7 @@ rest to people. That is why it does not scale: the work of rotation, and the
 knowledge of who holds what, grow with the number of secrets and consumers,
 while git's automation helps only with copying.
 
-## Secret zero
+### 5.4 Secret zero
 
 Every scheme reduces many secrets to fewer, better-protected ones: a SOPS
 file is protected by an age key, a secret service by an authentication
@@ -999,7 +997,7 @@ something already established: a human's single sign-on, a host identity
 created at provisioning, a cloud instance identity, a CI provider's signed
 token. Weak answers move a long-lived password one step further away and stop.
 
-## Kinds of secret
+### 5.5 Kinds of secret
 
 Rotation cost varies by kind, and that cost shapes the design:
 
@@ -1016,7 +1014,7 @@ Rotation cost varies by kind, and that cost shapes the design:
   disastrous to lose either way; they need an offline, split, tested recovery
   procedure rather than automation.
 
-## Questions for an agent
+### 5.6 Questions for an agent
 
 **Ask:** "For this secret, list every principal that can read it today,
 including through history, backups, CI and images, and what it would take to
@@ -1027,7 +1025,7 @@ history" offered as revocation.
 
 <span id="exercise-4"></span>
 
-## Exercise 4: who holds the password?
+### 5.7 Exercise 4: who holds the password?
 
 The production database password has been in a private repository since
 2022. Five people have had access; two have left, and their access was
@@ -1039,13 +1037,13 @@ access.
 
 [Worked answer](#answer-4)
 
-# Secrets inside Docker
+## 6. Secrets inside Docker
 
 Whatever stores the secret, it must eventually reach a process in a
 container. This chapter covers what Docker itself offers for that last step,
 and how each option behaves under inspection and rotation.
 
-## Leak paths, collected
+### 6.1 Leak paths, collected
 
 | Mechanism | Where the value ends up | Who can read it |
 | --- | --- | --- |
@@ -1072,7 +1070,7 @@ through the environment. When that is the case, set the variable in the
 process that needs it, at the last moment (a wrapper reading a file, or
 `sops exec-env`, chapter 7), rather than in the container's configuration.
 
-## Compose secrets without Swarm
+### 6.2 Compose secrets without Swarm
 
 A top-level `secrets:` element declares secrets; a service lists those it
 receives; each appears in the container under `/run/secrets/<name>`
@@ -1147,7 +1145,7 @@ ownership to the host; the environment source lets you set ownership but
 writes the value to disk inside the container, and requires the value in the
 environment of whoever runs `docker compose`.
 
-## The `_FILE` convention
+### 6.3 The `_FILE` convention
 
 `POSTGRES_PASSWORD_FILE` is not a Docker feature. It is a convention of
 the Docker Official Images' entrypoint scripts, supported by PostgreSQL,
@@ -1160,7 +1158,7 @@ entrypoint might leave the value in the server's environment. For your own
 images, read secrets from files in the application rather than converting
 them back to environment variables in a wrapper.
 
-## Swarm secrets
+### 6.4 Swarm secrets
 
 Swarm's design is the one the Compose syntax imitates. A secret is sent to a
 manager over mutual TLS, stored in the Raft log (encrypted at rest), and
@@ -1175,7 +1173,7 @@ manager needs a human to run `docker swarm unlock`
 works only for Swarm services, not for standalone containers or Compose
 without Swarm.
 
-## Rotation through a bind mount
+### 6.5 Rotation through a bind mount
 
 Lab 2 continues: the host file is replaced atomically (`printf … >
 db_password.new; mv db_password.new db_password`). **Observed:**
@@ -1208,7 +1206,7 @@ Three distinct lessons:
 - **Consumers must reload.** Even when the file changes visibly, a process
   that read it at start-up keeps the old value until it re-reads or restarts.
 
-## Registry credentials
+### 6.6 Registry credentials
 
 `docker login` without a credential helper stores credentials in
 `~/.docker/config.json` "in a base64-encoded format", which the documentation
@@ -1219,7 +1217,7 @@ delegate to `pass`, the Secret Service or the OS keychain, and
 `config.json` on build hosts and CI runners belongs in the inventory of
 secrets.
 
-## Questions for an agent
+### 6.7 Questions for an agent
 
 **Ask:** "Show how each container receives each secret, which UID reads it,
 what happens when the secret changes, and how the authority that checks it
@@ -1231,7 +1229,7 @@ outside Swarm; rotation described as "update the file and run `up -d`".
 
 <span id="exercise-5"></span>
 
-## Exercise 5: review a Compose change
+### 6.8 Exercise 5: review a Compose change
 
 An agent proposes this to remove passwords from `environment:`:
 
@@ -1256,7 +1254,7 @@ acceptable fixes with their tradeoffs.
 
 <span id="exercise-6"></span>
 
-## Exercise 6: predict a rotation
+### 6.9 Exercise 6: predict a rotation
 
 Lab 4 renders credentials into `/run/app/db.env` on a volume mounted at
 `/run/app` (a directory). The agent rewrites the file by rename every time the
@@ -1266,7 +1264,7 @@ replaced and the old one revoked, and what would fix it?
 
 [Worked answer](#answer-6)
 
-# Model one: encrypted files in git
+## 7. Model one: encrypted files in git
 
 The smallest change to the repository model keeps git as the store and
 distribution channel but stores only ciphertext. Git then provides history,
@@ -1274,7 +1272,7 @@ review and deployment from a commit; cryptography decides who can read. The
 flaw from chapter 5 remains in a sharper form: whoever could decrypt a commit
 can decrypt it for ever.
 
-## SOPS: envelope encryption per file
+### 7.1 SOPS: envelope encryption per file
 
 SOPS (a CNCF Sandbox project, MPL-2.0; 3.13.3 released 23 July 2026)
 encrypts structured files so that **keys stay readable and values do not**
@@ -1309,7 +1307,7 @@ Key groups with `shamir_threshold` can require keys from several groups (for
 example, two of three administrators) to decrypt
 ([key groups](https://getsops.io/docs/usage/identities/key-groups/)).
 
-## age
+### 7.2 age
 
 age (1.3.2, BSD-3-Clause) is a small file-encryption tool and format. A
 recipient is an X25519 public key (`age1…`) or an SSH public key; an identity
@@ -1320,7 +1318,7 @@ Whether SOPS accepts post-quantum recipients was not verified. With age, the
 recipient list in `.sops.yaml` *is* the access-control list, and the identity
 files are the secret zero.
 
-## Lab 3: recipients, removal and history
+### 7.3 Lab 3: recipients, removal and history
 
 `examples/sops/lab.sh` creates three identities, `alice` (a person), `ci` and
 `web1` (a production host), and a git repository using the rules above.
@@ -1363,7 +1361,7 @@ AES-GCM as additional authenticated data (`Tree.Encrypt` in
 documentation does not describe this). Integrity is a real strength of
 the model: a commit cannot silently swap values around.
 
-## Getting values to the process
+### 7.4 Getting values to the process
 
 - `sops exec-env FILE CMD` decrypts into the environment of one child process
   (step 7 printed the length of `DB_PASSWORD` from inside it);
@@ -1382,7 +1380,7 @@ the model: a commit cannot silently swap values around.
   ([community.sops](https://docs.ansible.com/ansible/latest/collections/community/sops/index.html),
   [Flux and SOPS](https://fluxcd.io/flux/guides/mozilla-sops/)).
 
-## KMS recipients change the model
+### 7.5 KMS recipients change the model
 
 If the recipient is a cloud KMS key (or OpenBao transit) rather than an age
 identity, each decryption is an authenticated API call. That changes three
@@ -1393,7 +1391,7 @@ file to leak. The price is a dependency on the KMS being reachable at
 decryption time, and secret zero becomes the identity used to call it. This is
 a step towards model two while keeping git as the store.
 
-## ansible-vault and git-crypt
+### 7.6 ansible-vault and git-crypt
 
 **ansible-vault** encrypts whole files or single values (`!vault` tags from
 `encrypt_string`) with AES-256 in CTR mode and an HMAC-SHA256, using keys
@@ -1414,7 +1412,7 @@ access cannot be revoked: there is no command to remove a GPG user, and "a
 user having the previous key can still access previous repository history"
 ([git-crypt](https://github.com/AGWA/git-crypt)). Not recommended for new use.
 
-## Strengths and weaknesses
+### 7.7 Strengths and weaknesses
 
 | Property | Encrypted files in git |
 | --- | --- |
@@ -1433,7 +1431,7 @@ existing git and configuration-management workflow. It degrades as the number
 of people and recipients grows, because each departure means a rotation
 campaign, and it gives no record of who actually read what.
 
-## Questions for an agent
+### 7.8 Questions for an agent
 
 **Ask:** "For this `.sops.yaml`, who can decrypt each file, where do their
 identities live, and what is our procedure when someone leaves?" A good
@@ -1445,7 +1443,7 @@ inside the working tree.
 
 <span id="exercise-7"></span>
 
-## Exercise 7: plan a departure
+### 7.9 Exercise 7: plan a departure
 
 The repository uses the `.sops.yaml` above. Alice leaves today. She had
 `prod/` and `dev/` access for two years; her laptop is returned and wiped.
@@ -1455,14 +1453,14 @@ use only through her SSO identity.
 
 [Worked answer](#answer-7)
 
-# Model two: a secret service
+## 8. Model two: a secret service
 
 The second model replaces a file that is copied with a service that is
 asked. The value never has to exist anywhere but the service and the
 consumer; each request is authenticated, authorised and logged; and the
 service can issue credentials that it creates, limits in time and revokes.
 
-## The request path
+### 8.1 The request path
 
 ```text
 consumer --(1) authenticate with an identity--> auth method --> token
@@ -1495,7 +1493,7 @@ service  --(4) audit log: who, which path, when (values HMAC'd)
   Shamir key shares held by people or automatically by a KMS or HSM
   ([seal](https://openbao.org/docs/concepts/seal/)).
 
-## Lab 4: dynamic database credentials
+### 8.2 Lab 4: dynamic database credentials
 
 `examples/openbao/` runs PostgreSQL, an OpenBao 2.7.1 server in **dev mode**
 (in memory, unsealed, with a fixed root token: a lab shortcut, never a
@@ -1542,7 +1540,7 @@ show the auth method and address, not which service asked. Per-host or
 per-service roles (whose names and entity IDs appear in the entry's `auth`
 metadata) make the record attributable; the lab did not exercise this.
 
-## What it costs
+### 8.3 What it costs
 
 - **A tier-0 dependency.** Consumers that fetch at start-up cannot start
   while the service is down or sealed. Agents with caching soften this for
@@ -1568,7 +1566,7 @@ metadata) make the record attributable; the lab did not exercise this.
   or an agent restarts them; dynamic credentials need applications that
   tolerate the user name changing.
 
-## OpenBao or Vault
+### 8.4 OpenBao or Vault
 
 HashiCorp Vault introduced the model. A licence change announced in August
 2023, first applying to 1.15, put it under the Business Source Licence 1.1:
@@ -1600,7 +1598,7 @@ avoids licence and vendor questions at the cost of a smaller ecosystem
 (**recommendation**). Choosing Vault is reasonable where a support contract
 or Enterprise features (for example, performance replication) are wanted.
 
-## Hosted services
+### 8.5 Hosted services
 
 | Service | Model | Notes |
 | --- | --- | --- |
@@ -1623,7 +1621,7 @@ the cloud's workload identity federation accepts an identity the hosts
 already have. SaaS products trade operations for a dependency on a vendor's
 availability, pricing and continued existence.
 
-## Questions for an agent
+### 8.6 Questions for an agent
 
 **Ask:** "If the secret service is unavailable for an hour, what fails, in
 what order, and what keeps working?" A good answer distinguishes running
@@ -1639,7 +1637,7 @@ sign: "the lease is revoked" offered as proof.
 
 <span id="exercise-8"></span>
 
-## Exercise 8: design the bootstrap
+### 8.7 Exercise 8: design the bootstrap
 
 Thirty hosts run Compose services that will fetch credentials from an
 OpenBao cluster through an agent on each host, using AppRole. Hosts are
@@ -1649,12 +1647,12 @@ attacker who obtains one host's disk image could do.
 
 [Worked answer](#answer-8)
 
-# Delivery, identity and comparison
+## 9. Delivery, identity and comparison
 
 Chapters 7 and 8 can be compared fairly only after splitting "secret
 management" into three decisions that proposals often blur.
 
-## Three separate decisions
+### 9.1 Three separate decisions
 
 1. **Storage: where is the source of truth?** Encrypted files in git; a
    secret service; a cloud manager; a platform object (Kubernetes Secret,
@@ -1672,7 +1670,7 @@ Ansible files or by Flux in Kubernetes; OpenBao storage can be delivered by an
 agent, the application itself, or a Kubernetes operator. Identity is what
 decides how much is left for secret zero.
 
-## Delivery patterns for Compose hosts
+### 9.2 Delivery patterns for Compose hosts
 
 | Pattern | How | Good for | Watch for |
 | --- | --- | --- | --- |
@@ -1685,7 +1683,7 @@ The OpenBao Agent's template `exec` block runs a command when a rendered
 file's content changes; the older `command` option is deprecated
 ([agent templates](https://openbao.org/docs/agent-and-proxy/agent/template/)).
 
-## Identity removes secrets
+### 9.3 Identity removes secrets
 
 Where a platform already authenticates a workload, a long-lived secret can be
 replaced by an exchange of short-lived, signed tokens:
@@ -1710,7 +1708,7 @@ A credential that is issued per request and expires in minutes needs no
 rotation procedure. This is the strongest available answer to chapter 5: the
 access set of each value is one consumer, for a short time.
 
-## The models compared
+### 9.4 The models compared
 
 | | Encrypted files (SOPS + age) | SOPS + KMS | Self-hosted service (OpenBao) | Cloud manager | SaaS manager |
 | --- | --- | --- | --- | --- | --- |
@@ -1728,7 +1726,7 @@ No column wins. The right one depends on the number of people who must lose
 access over time, whether credentials you issue (databases) dominate, what
 identity the hosts already have, and who will operate a tier-0 service.
 
-## Questions for an agent
+### 9.5 Questions for an agent
 
 **Ask:** "For this proposal, state the storage, delivery and identity choices
 separately, and what secret zero is for a host, a CI job and a person." A good
@@ -1739,7 +1737,7 @@ the secrets it unlocks.
 
 <span id="exercise-9"></span>
 
-## Exercise 9: choose under constraints
+### 9.6 Exercise 9: choose under constraints
 
 For each situation, choose a storage model and a delivery pattern, and give
 the one fact that most drives the choice.
@@ -1754,13 +1752,13 @@ the one fact that most drives the choice.
 
 [Worked answer](#answer-9)
 
-# Kubernetes later (optional)
+## 10. Kubernetes later (optional)
 
 Read this chapter if Kubernetes is a realistic destination; it needs chapters
 6 and 9. The aim is not to design a cluster but to make today's choice one
 that carries forward.
 
-## What a Kubernetes Secret is
+### 10.1 What a Kubernetes Secret is
 
 A Secret is an API object whose values are base64-encoded: an encoding, not
 encryption (the documentation describes a base64 credential in one of its
@@ -1786,7 +1784,7 @@ Three properties surprise people used to files on a host:
   `subPath` mounts and environment variables are not, until the pod restarts.
   The rotation lessons of chapter 6 carry over directly.
 
-## Getting secrets from a store into pods
+### 10.2 Getting secrets from a store into pods
 
 | Tool | What it does | Status (October 2026) |
 | --- | --- | --- |
@@ -1802,7 +1800,7 @@ depends on a volunteer maintainer team. ESO's provider for HashiCorp Vault is
 the usual route to OpenBao; check compatibility for the versions in use
 ([provider](https://external-secrets.io/latest/provider/hashicorp-vault/)).
 
-## How today's choice carries forward
+### 10.3 How today's choice carries forward
 
 - **SOPS + age today** carries over to Flux, which decrypts the same files,
   with the cluster holding an age identity. Recipient management and
@@ -1816,7 +1814,7 @@ the usual route to OpenBao; check compatibility for the versions in use
 Delivery and identity change with the platform; storage need not. That is
 the practical reason to keep the three decisions separate.
 
-## Questions for an agent
+### 10.4 Questions for an agent
 
 **Ask:** "Who can read this Secret, counting everyone who can create pods or
 workloads in its namespace and everyone with `list`, and which encryption
@@ -1835,7 +1833,7 @@ reading it.
 
 <span id="exercise-10"></span>
 
-## Exercise 10: predict an update
+### 10.5 Exercise 10: predict an update
 
 A Deployment uses one Secret three ways: as an environment variable
 `API_KEY`, as a volume mounted at `/etc/creds/`, and as a single file mounted
@@ -1845,9 +1843,9 @@ an agent need to add so that the application uses it?
 
 [Worked answer](#answer-10)
 
-# Choosing and migrating
+## 11. Choosing and migrating
 
-## Questions that change the answer
+### 11.1 Questions that change the answer
 
 Answer these first; each one moves the choice between columns of the
 comparison table.
@@ -1865,7 +1863,7 @@ comparison table.
    is sealed at 03:00? If not, the service must be hosted.
 6. **Platform horizon.** Will Kubernetes arrive, and on which cloud, if any?
 
-## Three candidate designs
+### 11.2 Three candidate designs
 
 **Design 1: SOPS in the configuration repository.** Production secrets move
 from the private repository into SOPS files with age recipients per person and
@@ -1901,7 +1899,7 @@ to bootstrap material. Choose design 3 instead of 2 when the fleet moves into
 one cloud, or when no one will operate OpenBao. This is a judgement under
 stated assumptions, not a universal answer.
 
-## A staged migration
+### 11.3 A staged migration
 
 **Stage 0: stop the bleeding (days).**
 
@@ -1930,7 +1928,7 @@ secrets first. Each migration ends with a rotation.
 period, then delete it. Neither step revokes anything; the rotations in
 stages 1–2 did that.
 
-## Rotation without an outage
+### 11.4 Rotation without an outage
 
 The lab's failed login after "rotation" (chapter 6) has a standard fix: let
 two credentials be valid during the change.
@@ -1946,7 +1944,7 @@ two credentials be valid during the change.
 Dynamic credentials do this continuously; static ones need it written down
 per secret. A rotation is complete only when step 3 has evidence.
 
-## Acceptance criteria for a migrated service
+### 11.5 Acceptance criteria for a migrated service
 
 A migration proposal from an agent should come with criteria like these, each
 with the command or log that demonstrates it:
@@ -1967,7 +1965,7 @@ with the command or log that demonstrates it:
 - The audit record shows the service's own identity fetching its secrets and
   nothing else.
 
-## Leak response
+### 11.6 Leak response
 
 When a secret is known or suspected to be exposed:
 
@@ -1984,7 +1982,7 @@ When a secret is known or suspected to be exposed:
 
 An agent that proposes `git filter-repo` before rotation has the order wrong.
 
-## Diagnosis
+### 11.7 Diagnosis
 
 | Symptom | Likely causes | Evidence that distinguishes them |
 | --- | --- | --- |
@@ -2001,7 +1999,7 @@ Ask for the evidence column before accepting an agent's diagnosis. "I changed
 the mode and restarted, and it works now" is a fix without a cause; the cause
 determines whether the same failure is waiting on the other 29 hosts.
 
-## Questions for an agent
+### 11.8 Questions for an agent
 
 **Ask:** "What is the rollback if this migration fails halfway, and which
 values will already have been rotated?" A good answer recognises that
@@ -2011,7 +2009,7 @@ described as "revert the commit"; no list of values rotated in each step.
 
 <span id="exercise-11"></span>
 
-## Exercise 11: acceptance criteria
+### 11.9 Exercise 11: acceptance criteria
 
 Write five acceptance criteria, each with the evidence that demonstrates it,
 for moving one Compose service's PostgreSQL password from a private
@@ -2021,7 +2019,7 @@ repository to SOPS-encrypted files deployed by Ansible (design 1, pattern A).
 
 <span id="exercise-12"></span>
 
-## Exercise 12: diagnose
+### 11.10 Exercise 12: diagnose
 
 After moving a service to OpenBao dynamic credentials with a host agent
 (pattern B, `default_ttl=1h`, `max_ttl=24h`; the agent renders the file but
@@ -2033,15 +2031,11 @@ the evidence that would confirm it, and a better fix.
 
 [Worked answer](#answer-12)
 
-<span class="unnumbered"></span>
-
-# Worked answers
+## Worked answers
 
 <span id="answer-1"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 1
+### Exercise 1
 
 [Back to exercise 1](#exercise-1)
 
@@ -2062,9 +2056,7 @@ the evidence that would confirm it, and a better fix.
 
 <span id="answer-2"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 2
+### Exercise 2
 
 [Back to exercise 2](#exercise-2)
 
@@ -2090,9 +2082,7 @@ at `COPY` or values. This is why a clean check is weak evidence.
 
 <span id="answer-3"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 3
+### Exercise 3
 
 [Back to exercise 3](#exercise-3)
 
@@ -2113,9 +2103,7 @@ log that runs it.
 
 <span id="answer-4"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 4
+### Exercise 4
 
 [Back to exercise 4](#exercise-4)
 
@@ -2134,9 +2122,7 @@ set.
 
 <span id="answer-5"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 5
+### Exercise 5
 
 [Back to exercise 5](#exercise-5)
 
@@ -2161,9 +2147,7 @@ Making the file 0444 inside a 0700 directory also works and was used in lab
 
 <span id="answer-6"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 6
+### Exercise 6
 
 [Back to exercise 6](#exercise-6)
 
@@ -2181,9 +2165,7 @@ the revocation statements must also terminate their sessions.
 
 <span id="answer-7"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 7
+### Exercise 7
 
 [Back to exercise 7](#exercise-7)
 
@@ -2210,9 +2192,7 @@ tied to files), instead of requiring every value to be assumed exposed.
 
 <span id="answer-8"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 8
+### Exercise 8
 
 [Back to exercise 8](#exercise-8)
 
@@ -2250,9 +2230,7 @@ later) removes the reusable secret ID.
 
 <span id="answer-9"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 9
+### Exercise 9
 
 [Back to exercise 9](#exercise-9)
 
@@ -2274,9 +2252,7 @@ later) removes the reusable secret ID.
 
 <span id="answer-10"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 10
+### Exercise 10
 
 [Back to exercise 10](#exercise-10)
 
@@ -2291,9 +2267,7 @@ stop using the environment variable and `subPath` mount for it.
 
 <span id="answer-11"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 11
+### Exercise 11
 
 [Back to exercise 11](#exercise-11)
 
@@ -2317,9 +2291,7 @@ For example:
 
 <span id="answer-12"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 12
+### Exercise 12
 
 [Back to exercise 12](#exercise-12)
 
@@ -2337,9 +2309,7 @@ long-lived ones. Better: reload or restart the application from the agent's
 connection, and set the pool's connection lifetime below the credential's
 lifetime.
 
-<span class="unnumbered"></span>
-
-# Field reference
+## Field reference
 
 | Need | Command or setting |
 | --- | --- |
@@ -2362,13 +2332,9 @@ lifetime.
 | Rotate DB admin | `bao write -f database/rotate-root/NAME` |
 | Audit device (OpenBao 2.3.2 and later) | `audit "file" "NAME" { options { file_path = … } }` in server config |
 
-<span class="unnumbered"></span>
+## Labs, sources and verification
 
-# Labs, sources and verification
-
-<span class="unnumbered"></span>
-
-## Files
+### Files
 
 All under `docker-secrets/examples/`:
 
@@ -2385,9 +2351,7 @@ Every value in the labs is a lab marker. Run them only against a disposable
 Docker daemon; `README.md` shows how to use a Docker-in-Docker container for
 that.
 
-<span class="unnumbered"></span>
-
-## Versions and sources
+### Versions and sources
 
 Target: Docker Engine 29.9 (29.9.2 current), Compose v5.6, Buildx 0.38,
 BuildKit 0.34, Dockerfile frontend 1.28; SOPS 3.13.3; age 1.3.2; OpenBao
@@ -2397,9 +2361,7 @@ Kubernetes 1.37, Vault 2.2, External Secrets Operator 2.13, Sealed Secrets
 sources are linked beside each claim; documentation URLs are mutable and were
 read on that date. Chapter 1 was researched on 3 November 2026.
 
-<span class="unnumbered"></span>
-
-## What was and was not verified
+### What was and was not verified
 
 `verification.md` records the runs. Chapter 1's examples ran on 3 November 2026 on
 Docker Engine 29.9.2 with Compose 5.6.1, apart from those it lists. All four labs ran in full on Docker
