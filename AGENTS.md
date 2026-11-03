@@ -11,10 +11,10 @@ When doing any git or gh operation, you must first read and understand
 
 - Repository meta files have upper-case names: `AGENTS.md`, `CLAUDE.md`,
   `GIT.md`, `README.md`, `LICENSE`, `SKILL.md`, plus `.gitignore`.
-- Every other root entry is one tutorial: either a standalone Markdown
-  file or a subdirectory. `SKILL.md` ("Package and verify") defines what
-  goes in each. Use a lower-case, subject-revealing name (`ansible.md`,
-  `ansible/`) so tutorials are never confused with meta files.
+- Every other root entry is one tutorial: a subdirectory holding both
+  Markdown and a PDF. `SKILL.md` ("Package and verify") defines what
+  goes in it. Use a lower-case, subject-revealing name (`ansible/`) so
+  tutorials are never confused with meta files.
 - Never add a shared top-level example or asset; it would give a
   tutorial a second root entry.
 
@@ -39,11 +39,11 @@ with a failing check:
 
 ```sh
 git diff --check HEAD   # trailing whitespace, conflict markers
-make -C TUTORIAL_DIR    # each touched LaTeX tutorial builds
+make -C TUTORIAL_DIR    # each touched tutorial's PDF builds
 ```
 
-For a LaTeX tutorial, make sure the committed PDF was rebuilt from the
-committed source. There is no automated Markdown check: pandoc and
+Make sure each committed PDF was rebuilt from the committed source.
+There is no automated Markdown check: pandoc and
 similar tools accept broken fences, tables, and links without
 complaint, so inspect them as `SKILL.md` ("Package and verify")
 requires. These checks are repository hygiene. They do not replace the

@@ -17,7 +17,7 @@ Interview → save the learner brief → establish an outline → research → w
 
 For an existing tutorial, read its brief and content first. Reuse established preferences and ask only about material gaps or changed requirements.
 
-### 1. Interview and agree the format
+### 1. Interview
 
 Use the request and available project context before asking questions. Ask a small batch of focused questions whose answers materially change scope, depth, examples, or presentation. Establish:
 
@@ -27,15 +27,13 @@ Use the request and available project context before asking questions. Ask a sma
 - Constraints that affect the teaching: versions, environment, scale, security or operational needs, available study time, desired depth, and reading or exercise preferences.
 - Concrete outcomes: what they should be able to explain, decide, review, and verify afterwards.
 
-Stop the interview when you can choose the scope, progression, representative example, and format. Follow up only on gaps that would materially alter those choices. State reasonable assumptions for minor unknowns; do not prolong the interview to collect every possible preference.
+Stop the interview when you can choose the scope, progression, and representative example. Follow up only on gaps that would materially alter those choices. State reasonable assumptions for minor unknowns; do not prolong the interview to collect every possible preference.
 
-At the end of the interview, recommend Markdown or LaTeX and explain the tradeoff for this tutorial. Prefer Markdown for repository reading, easy revision, and code-heavy material; consider LaTeX when mathematical notation, typesetting, cross-references, or a print-oriented PDF materially improve the result. Make a reasoned choice rather than treating either format as mandatory.
-
-Present the recommendation with a concise summary of the agreed scope and **ask the learner to confirm the format**. Wait for that confirmation before generating the tutorial. An explicit format choice already supplied by the learner satisfies this requirement; acknowledge it without asking again.
+End the interview with a concise summary of the agreed scope. Do not ask about format: every tutorial is Markdown source plus a PDF built from it (see "Package and verify").
 
 ### 2. Save the brief and establish the outline
 
-Persist a concise learner brief containing the goals, prior knowledge, intended work, retained decisions, constraints, target versions, agreed format, and any assumptions or open questions. Additional personal details and subject-specific experience belong in this brief; the baseline background above may be assumed for every tutorial.
+Persist a concise learner brief containing the goals, prior knowledge, intended work, retained decisions, constraints, target versions, and any assumptions or open questions. Additional personal details and subject-specific experience belong in this brief; the baseline background above may be assumed for every tutorial.
 
 Organise the outline around capabilities and decisions. Use this progression as a guide:
 
@@ -95,27 +93,25 @@ For each substantial topic, include useful questions the learner can ask an agen
 
 Use exercises that match the learner's role: predict a result, review a proposed change, choose between designs under stated constraints, diagnose output, or write acceptance criteria. Provide worked answers or reasoning separately so the learner can attempt the exercise first. Any code-writing exercise should serve understanding rather than syntax fluency.
 
-Link each exercise to its worked answer and each answer back to its exercise, wording both links so the text still makes sense where links do nothing: `[Worked answer](#answer-1)` and `[Back to exercise 1](#exercise-1)`. A link must land with its title in view, so its target goes before any heading. In Markdown, make the targets work both on GitHub and in a Pandoc PDF with an empty span: `<span id="answer-1"></span>` as its own paragraph immediately before the answer's heading, with the back link as the line under that heading. Treat the exercise the same way, or begin its first paragraph with the span if it has no heading. End the exercise with the forward link, as its own paragraph if the exercise closes with a list. Do not put the span inside a heading, because the PDF link is left undefined. A Pandoc PDF build also needs a Lua filter, because a page break can otherwise separate an anchor from its text: it moves such a span's id onto the heading that follows, and starts the paragraph before a leading span with `\leavevmode`. An existing tutorial's `span-markers.lua` does this; copy it into the tutorial's directory. In LaTeX source, use `\label` directly after a sectioning command, `\leavevmode\phantomsection\label` at the start of a target with no heading, and `\hyperref` for the links.
+Link each exercise to its worked answer and each answer back to its exercise, wording both links so the text still makes sense where links do nothing: `[Worked answer](#answer-1)` and `[Back to exercise 1](#exercise-1)`. A link must land with its title in view, so its target goes before any heading. Make the targets work both on GitHub and in the PDF with an empty span: `<span id="answer-1"></span>` as its own paragraph immediately before the answer's heading, with the back link as the line under that heading. Treat the exercise the same way, or begin its first paragraph with the span if it has no heading. End the exercise with the forward link, as its own paragraph if the exercise closes with a list. Do not put the span inside a heading, because the PDF link is left undefined. The PDF build also needs a Lua filter, because a page break can otherwise separate an anchor from its text: it moves such a span's id onto the heading that follows, and starts the paragraph before a leading span with `\leavevmode`. An existing tutorial's `span-markers.lua` does this; copy it into the tutorial's directory.
 
 Keep Pandoc attributes such as `{#id}` and `{.unnumbered}` out of Markdown headings, because GitHub shows them as literal text. Give a heading an id only when something links to it, using the span above, and mark an unnumbered heading with `<span class="unnumbered"></span>` as its own paragraph before it; the same filter applies both.
 
-Keep the brief, the interview, and this skill out of the tutorial's text. The brief shapes scope, depth, examples, and format; it is not content. Do not address the learner by name, tell them about their own background or plans, mention where or how they will read, or refer to what the interview did or did not establish. State assumptions as properties of the material: "Examples assume Ubuntu 24.04", not "your distribution was not specified". Do not reproduce this skill's wording or process, such as closing answers with what the learner "can now judge" or describing how the tutorial was written or reviewed. Pointers to supporting files and statements of verification limits remain required. Label excerpts and untested samples once and briefly; do not repeat disclaimers that an example is not a recommendation.
+Write mathematical notation as `$...$` and `$$...$$`, the forms both GitHub and the PDF render. In the PDF, ` ```math ` fences come out as code and `\(...\)` and `\[...\]` as literal text, without any warning. On GitHub, bare LaTeX environments do not render and macros from the PDF's header are undefined.
+
+Keep the brief, the interview, and this skill out of the tutorial's text. The brief shapes scope, depth, and examples; it is not content. Do not address the learner by name, tell them about their own background or plans, mention where or how they will read, or refer to what the interview did or did not establish. State assumptions as properties of the material: "Examples assume Ubuntu 24.04", not "your distribution was not specified". Do not reproduce this skill's wording or process, such as closing answers with what the learner "can now judge" or describing how the tutorial was written or reviewed. Pointers to supporting files and statements of verification limits remain required. Label excerpts and untested samples once and briefly; do not repeat disclaimers that an example is not a recommendation.
 
 ### 5. Package and verify
 
-Keep **one root-level entry per tutorial**:
+Keep **one root-level entry per tutorial**: a subdirectory containing the Markdown source, the compiled PDF, a Makefile, the learner brief, the outline, and any examples and assets. Every tutorial provides both the Markdown and the PDF. Provide a working `make` target that builds the PDF with Pandoc and document the required toolchain; an existing tutorial's Makefile and supporting files are a starting point, copied into the new directory. Keep the PDF version-controlled alongside its source and rebuild it whenever its inputs change.
 
-- A standalone Markdown tutorial may be a single root-level `.md` file. Embed the learner brief and outline in that file, for example in concise appendices, so they do not create extra root entries.
-- If Markdown needs supporting files, put the tutorial, brief, outline, examples, and assets in one subdirectory.
-- For LaTeX, always create a subdirectory containing the source, supporting files, learner brief, outline, a Makefile, and the compiled PDF. Provide a working `make` target that builds the PDF and document the required toolchain. Keep the PDF version-controlled alongside its source and include it whenever the tutorial is committed.
+Choose names that make the subject clear. Keep generated intermediates out of version control while retaining the PDF. Do not place a shared top-level example or asset beside a tutorial, because that would give it a second root entry.
 
-Choose names that make the subject clear. Keep generated intermediates out of version control while retaining the required PDF. Do not place a shared top-level example or asset beside a standalone tutorial if that would give the tutorial multiple root entries.
-
-Verify according to the deliverable:
+Verify the tutorial:
 
 - Check technical claims against the researched sources and target version. Execute runnable examples where feasible in an appropriate isolated environment; compare observed behaviour with the explanation, including failure or repeat-run behaviour when it is central to the lesson. Do not execute examples against live systems merely to validate the prose.
-- For Markdown, check rendering-sensitive syntax, code fences, tables, internal links, and supporting file references with available tools. Confirm that exercise and answer links land on their targets in both directions, including in any PDF, where an undefined reference is only a warning and a misplaced anchor gives none.
-- For LaTeX, build through the Makefile, resolve errors and broken references, and inspect the PDF for readability, clipped code, and layout problems. Rebuild after source changes so the committed PDF matches the source.
+- Check the Markdown's rendering-sensitive syntax, code fences, tables, internal links, and supporting file references with available tools. Confirm that exercise and answer links land on their targets in both directions, including in the PDF, where an undefined reference is only a warning and a misplaced anchor gives none.
+- Build the PDF through the Makefile, resolve errors, broken references, and missing-character warnings, and inspect it for readability, clipped code, and layout problems. Rebuild after source changes so the committed PDF matches the source.
 - Check citations and internal cross-references, and ensure each supporting artifact is reachable from the tutorial. After inserting or renumbering a chapter, search the whole tutorial directory for chapter and section references, including comments and help text in examples, not only the tutorial's own text.
 
 Report which checks actually ran, their results, and any remaining limits. If a required build or check cannot run, identify the missing prerequisite and leave the deliverable explicitly incomplete rather than claiming verification. A verification record kept with the tutorial states what was checked and what it showed; it omits session history such as sandbox workarounds, review rounds, or who approved which change.
