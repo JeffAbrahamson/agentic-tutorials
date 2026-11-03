@@ -58,7 +58,7 @@ Claims about role layout, execution order, loops, `omit` and YAML quoting were a
 
 ## Document checks
 
-The nine exercises and their worked answers link to each other in both directions. The PDF build reported no undefined references, and tracing the PDF's link annotations took each of the 18 links to its target, with each answer's heading and each exercise's first line at the landing point.
+The nine exercises and their worked answers link to each other in both directions. The PDF build reported no undefined references, and tracing the PDF's link annotations took each of the 18 links to its target, with each answer's heading and each exercise's first line at the landing point. GitHub's rendered HTML kept all 18 targets and links, and following them in a browser worked. The headings carry no Pandoc attributes, and replacing those attributes left the PDF's extracted text and link positions unchanged.
 
 `make -C ansible` built the final PDF successfully using Pandoc and XeLaTeX: 53 pages. `pdffonts` confirmed embedded Latin Modern Roman (12-point body), Latin Modern Mono and Latin Modern Math. The PDF uses 160 × 230 mm pages, selectable text, linked contents and wrapping code. Inline code breaks only at separators, through `code-breaks.lua`; when the filter was added, the extracted text, ignoring whitespace, page numbers and line-end hyphens, matched the previous build that allowed breaks anywhere, so the filter's escaping changed no characters. Bounding-box checks found no text outside the body margins plus a 6-point tolerance. Visual inspection covered the page layouts, code, tables, headings and contents.
 
@@ -68,6 +68,6 @@ Citations were checked against the primary sources. A separate bulk HTTP link/fr
 
 ## Limits
 
-Exercise and answer links were checked in the PDF and in Pandoc's output only; their behaviour on GitHub has not been observed. No full Ubuntu VM was available for an end-to-end SSH/sudo/systemd run. The remote example is supplied as runnable under the stated prerequisites, not represented as end-to-end tested. The disposable-VM sequence in chapter 6 remains necessary before operational adoption. Boot enablement, target sudo policy, SSH host trust, external client paths, multi-host service availability and production secret handling were not exercised.
+No full Ubuntu VM was available for an end-to-end SSH/sudo/systemd run. The remote example is supplied as runnable under the stated prerequisites, not represented as end-to-end tested. The disposable-VM sequence in chapter 6 remains necessary before operational adoption. Boot enablement, target sudo policy, SSH host trust, external client paths, multi-host service availability and production secret handling were not exercised.
 
 No `ansible-lint` run over the examples is claimed. The tutorial explains its place in an evidence ladder without presenting it as a performed check. Core is pinned; the example is not a lockfile for all transitive Python dependencies or Ubuntu package repositories. No live machines were changed.

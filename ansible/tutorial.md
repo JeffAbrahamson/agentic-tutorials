@@ -4,7 +4,9 @@ subtitle: 'Execution, targeting, rollout and recovery with ansible-core 2.21'
 date: '20 October 2026'
 ---
 
-# Scope and prerequisites {.unnumbered}
+<span class="unnumbered"></span>
+
+# Scope and prerequisites
 
 This tutorial is about understanding what Ansible will do well enough to
 entrust it with real machines. Processes, files, SSH, exit status and failure
@@ -36,7 +38,7 @@ requiring a public listener or firewall change.
 The `examples/` directory contains the complete files. A build guide and the
 verification record are in `README.md` and `verification.md`.
 
-# Read Ansible code {#reading}
+# Read Ansible code
 
 This chapter is a phrasebook: enough to recognise each part of an Ansible
 repository and know what to look up. Most items get a sentence and a small
@@ -472,7 +474,7 @@ Flags you will see often are `-i` (inventory), `-l` (limit hosts), `-e` (extra
 variables), `-C` (check mode), `-D` (diff), `-b` (become), `-K` (prompt for the
 become password), `-t` (select tags) and `-v` (more output; repeat for more still).
 
-# Predict the run {#predict}
+# Predict the run
 
 ## A remote program with a state-aware vocabulary
 
@@ -582,7 +584,7 @@ intermediate state.
 and then fails its health check. Which earlier effects remain? What would you
 need to inspect before deciding to rerun? Write a three-sentence answer. [Worked answer](#answer-1)
 
-# Prove the target before changing it {#target}
+# Prove the target before changing it
 
 ## Identity is part of configuration
 
@@ -719,7 +721,7 @@ selected config, inventory output, actual aliases and effective connection data.
 must you check? Why is changing to an inline address inventory a poor automatic
 fix? [Worked answer](#answer-2)
 
-# Configure one real service {#service}
+# Configure one real service
 
 ## Define the contract first
 
@@ -986,7 +988,7 @@ those distinctions unresolved.
 assumptions and describe the useful evidence for deciding between reload and
 restart. [Worked answer](#answer-3)
 
-# Trace data before adding abstraction {#data}
+# Trace data before adding abstraction
 
 ## Variables are inputs, not a Python execution frame
 
@@ -1128,7 +1130,7 @@ the conflict.
 operator supplies `-u emergency` but inventory has `ansible_user: deploy`, can
 they assume the SSH login changed? [Worked answer](#answer-4)
 
-# Build evidence in layers {#evidence}
+# Build evidence in layers
 
 ## A preview answers a narrower question than a run
 
@@ -1286,7 +1288,7 @@ its health task receives HTTP 200. Write three additional acceptance criteria be
 you would trust it on a Jellybooks service. Make each identify a failure that
 those two observations could miss. [Worked answer](#answer-5)
 
-# Control a fleet change {#fleet}
+# Control a fleet change
 
 ## Concurrency is not an availability policy
 
@@ -1403,7 +1405,7 @@ batch fails after all five have installed new configuration. How many hosts
 might already have changed? What happens to the remaining six? Would adding
 `run_once` to a migration make it globally once-only? [Worked answer](#answer-6)
 
-# Diagnose partial completion and recover deliberately {#recovery}
+# Diagnose partial completion and recover deliberately
 
 ## Reconstruct the last proven state
 
@@ -1537,7 +1539,7 @@ an action whose reason should be explicit.
 instead of `r2`. Give two explanations and the observations that distinguish
 them. What must a recovery prove before moving to the next host? [Worked answer](#answer-7)
 
-# Keep operations understandable {#operations}
+# Keep operations understandable
 
 ## Treat secrets as a data path
 
@@ -1676,7 +1678,7 @@ uses its contents in a template with mode `'0644'`, and enables `--diff` in CI.
 The author says the values are safe because Git contains ciphertext. Trace two
 plaintext exposure paths and propose controls matched to those paths. [Worked answer](#answer-8)
 
-# Share ownership across tools {#ownership}
+# Share ownership across tools
 
 This optional chapter assumes the execution, inventory and failure models from
 chapters 1–8. Its purpose is to help you specify a handover between tools; it is
@@ -1774,7 +1776,7 @@ file; the application deployment script also restarts nginx. Describe one
 simpler ownership contract. What must happen before Terraform may remove a VM
 that still serves traffic? [Worked answer](#answer-9)
 
-# Worked answers {#answers}
+# Worked answers
 
 Attempt the exercises first. These answers show reasoning rather than a single
 required phrasing. Your service topology may justify a different policy, but it
@@ -1936,7 +1938,7 @@ verify the service no longer depends on it, handle state and persistent data,
 then allow infrastructure destruction. Establish what happens if drain succeeds
 but destroy fails, or destroy is requested while configuration is incomplete.
 
-# Field reference {#reference}
+# Field reference
 
 Use this when an agent proposes a change. Each question points
 to behaviour you have already traced; it is not a substitute for understanding
@@ -1967,7 +1969,7 @@ That is more useful than asking an agent to “make an idempotent Ansible role�
 It states what correctness means while leaving mechanical implementation to the
 agent.
 
-# Sources and verification {#sources}
+# Sources and verification
 
 Research date: **20 October 2026**, and **3 November 2026** for chapter 1. The executable target is **Core 2.21.5**.
 Official Ansible community documentation URLs under `latest` can change after
