@@ -1,6 +1,6 @@
 # Docker and secrets
 
-The tutorial is [docker-secrets.pdf](docker-secrets.pdf), a 2–3 hour read with exercises and worked answers. Part 1 is a short tour of Docker beyond build and run: the image and container model, BuildKit, Compose, hardening and inspection. Part 2 is about secret management. It covers why a private repository is the wrong model for secrets, leak paths and secret mechanisms in Docker, encrypted files in git (SOPS, age, ansible-vault, git-crypt), secret services (OpenBao, Vault, cloud and SaaS managers), delivery and identity, Kubernetes as an optional branch, and choosing and migrating.
+The tutorial is [docker-secrets.pdf](docker-secrets.pdf), a 2–3 hour read with exercises and worked answers. Chapter 1 is a reading primer for Dockerfiles, Compose files, command output, SOPS files and OpenBao policies. Part 1 is a short tour of Docker beyond build and run: the image and container model, BuildKit, Compose, hardening and inspection. Part 2 is about secret management. It covers why a private repository is the wrong model for secrets, leak paths and secret mechanisms in Docker, encrypted files in git (SOPS, age, ansible-vault, git-crypt), secret services (OpenBao, Vault, cloud and SaaS managers), delivery and identity, Kubernetes as an optional branch, and choosing and migrating.
 
 The source is [tutorial.md](tutorial.md). [brief.md](brief.md) and [outline.md](outline.md) record its scope and teaching assumptions. The tutorial targets Docker Engine 29.9 with Compose v5.6, SOPS 3.13.3 with age 1.3.2, and OpenBao 2.7.1.
 
@@ -24,13 +24,13 @@ The labs live in `examples/`; [verification.md](verification.md) records what th
 docker run -d --privileged --name dind -e DOCKER_TLS_CERTDIR= docker:29.9.1-dind
 docker exec dind apk add -q python3      # lab 1 scans layers with Python
 docker cp examples dind:/lab
-docker exec dind sh /lab/leaks/lab.sh    # lab 1, chapters 1-2
-docker exec dind sh /lab/compose/lab.sh  # lab 2, chapter 5
-docker exec dind sh /lab/openbao/lab.sh  # lab 4, chapter 7 (about 2 minutes)
+docker exec dind sh /lab/leaks/lab.sh    # lab 1, chapters 2-3
+docker exec dind sh /lab/compose/lab.sh  # lab 2, chapter 6
+docker exec dind sh /lab/openbao/lab.sh  # lab 4, chapter 8 (about 2 minutes)
 docker rm -f dind
 ```
 
-Lab 3 (chapter 6) needs no Docker. It needs `curl`, `git`, `sha256sum` and `tar` on Linux amd64 or arm64:
+Lab 3 (chapter 7) needs no Docker. It needs `curl`, `git`, `sha256sum` and `tar` on Linux amd64 or arm64:
 
 ```sh
 examples/sops/lab.sh

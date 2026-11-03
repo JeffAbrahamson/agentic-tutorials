@@ -4,19 +4,21 @@ subtitle: 'Beyond build and run, and choosing how secrets are stored, delivered 
 date: '21 October 2026'
 ---
 
-# Scope and prerequisites {.unnumbered}
+<span class="unnumbered"></span>
 
-This tutorial has two parts of unequal size. Part 1 (chapters 1–3) is a
-short tour of what Docker does beyond building, running and exec-ing into
-images, chosen for practical use and for the mechanics that later explain
-how secrets leak. Part 2 (chapters 4–10) is about secret management: why a
+# Scope and prerequisites
+
+This tutorial opens with a reading primer in chapter 1, and then has two parts
+of unequal size. Part 1 (chapters 2–4) is a short tour of what Docker does beyond building,
+running and exec-ing into images, chosen for practical use and for the mechanics that later explain
+how secrets leak. Part 2 (chapters 5–11) is about secret management: why a
 private repository is the wrong model for secrets, what the current models
 are, where they differ, and how to choose and implement one for services run
 with Docker Compose on Linux hosts, with Kubernetes as a possible later
 platform.
 
-Allow two to three hours. Read in order; chapter 9, on Kubernetes, is an
-optional branch that needs chapters 5 and 8. Most chapters end with an
+Allow two to three hours. Read in order; chapter 10, on Kubernetes, is an
+optional branch that needs chapters 6 and 9. Most chapters end with an
 exercise; worked answers are collected near the end. Pause at each exercise
 before reading its answer.
 
@@ -40,7 +42,456 @@ them.
 
 \newpage
 
-# What an image and a container really are {#model}
+# Read Docker, Compose and secret tools
+
+This chapter is a phrasebook: enough to recognise each part of a Dockerfile, a
+Compose file, a command's output and an encrypted secret file, and to know what
+to look up. Most items get a sentence and a small example, usually a fragment.
+Why things behave as they do comes in later chapters, so skim this now and
+return when a construct looks unfamiliar.
+
+## Hello, world
+
+A **Dockerfile** is a recipe for an **image**. An image is a stored template and
+a **container** is a process started from one, so one image can back many
+containers. Saved as `Dockerfile`, this is a complete recipe:
+
+```dockerfile
+FROM alpine:3.24
+CMD ["echo", "hello"]
+```
+
+```sh
+docker build -t hello .
+docker run --rm hello    # prints: hello
+```
+
+`-t` names the image. The `.` is the **build context**, the directory whose files
+the build may copy.
+`.dockerignore` lists what to leave out of it. `--rm` deletes the container when
+it exits.
+
+## Image names
+
+A name has the form `registry/namespace/repository:tag@digest`, and most parts
+can be omitted:
+
+```text
+alpine                        docker.io/library/alpine:latest
+alpine:3.24                   tag 3.24 of that repository
+registry.example.com/api:1.4  another registry
+alpine@sha256:be265606...     exact content
+```
+
+A **tag** is a movable label, and `latest` is only the default tag, not a promise
+of newness. A **digest** is the SHA-256 of the content, so it cannot move.
+
+## Dockerfile instructions
+
+Each instruction is one line, by convention in capitals; `\` continues a line
+and `#` starts a comment.
+[Dockerfile reference](https://docs.docker.com/reference/dockerfile/).
+
+| Instruction | Meaning |
+| --- | --- |
+| `FROM image` | Start from this image; `FROM scratch` starts from nothing |
+| `RUN cmd` | Run a command during the build and keep its filesystem changes |
+| `COPY src dest` | Copy from the build context into the image |
+| `WORKDIR /app` | Set the current directory for later instructions and at run time |
+| `ENV KEY=value` | Set a variable during the build and in every container |
+| `ARG KEY=default` | Set a variable during the build, given with `--build-arg` |
+| `USER 1000` | Run later steps and the container as this user |
+| `EXPOSE 80` | Document a port; it publishes nothing |
+| `LABEL key=value` | Attach metadata to the image |
+| `VOLUME /data` | Declare a path that holds data outside the container's layer |
+| `HEALTHCHECK` | Give a command that reports whether the container is healthy |
+| `ENTRYPOINT`, `CMD` | Set the command a container runs |
+
+**Directives.** A comment on the first lines of the file can instruct the parser.
+These two look like comments and are not; chapter 3 covers both:
+
+```dockerfile
+# syntax=docker/dockerfile:1
+# check=error=true
+```
+
+**Stages.** Each `FROM` starts a new **stage**, which `AS` names. A later stage
+can build on one or copy from it, and `--target` stops the build at one. Stages
+are the nearest thing to a unit of reuse; a Dockerfile has no functions. A
+`--platform=` flag on `FROM` picks an architecture, and `$BUILDPLATFORM` means the
+builder's own. This fragment shows only the stage syntax:
+
+```dockerfile
+FROM golang:1.25 AS build
+RUN go build -o /out/app ./cmd/app
+
+FROM alpine:3.24
+COPY --from=build /out/app /app
+```
+
+**Mounts.** `RUN --mount=type=…` gives one step something that does not become
+part of the image: `secret`, `ssh` or `cache`. Chapter 3 explains them.
+
+**Branches, loops and errors.** A Dockerfile has no `if` or loop, so these are
+shell inside `RUN`. A `RUN` whose exit status is non-zero stops the build, and
+only the last command's status counts, so `RUN false; echo ok` succeeds and
+`RUN false && echo ok` fails. A here-document holds a longer script, and needs
+`set -e` to stop at its first failure:
+
+```dockerfile
+RUN <<EOT
+set -e
+if [ "$VARIANT" = small ]; then echo small > size.txt; fi
+EOT
+```
+
+## Running containers
+
+| Command | Meaning |
+| --- | --- |
+| `docker run IMAGE [CMD]` | Create and start a new container |
+| `docker exec CONTAINER CMD` | Run another process in a running container |
+| `docker logs -f CONTAINER` | Follow what the main process has written to its output |
+| `docker ps -a` | List containers, including stopped ones |
+| `docker images` | List images |
+| `docker inspect NAME` | Print full configuration and state as JSON |
+
+The flags you will see most on `docker run`:
+
+```sh
+docker run -d --name web -p 8080:80 -e MODE=prod \
+  -v "$PWD/site:/usr/share/nginx/html:ro" nginx:1.29-alpine
+docker exec -it web sh
+```
+
+`-d` runs in the background and `--name` sets the name. `-p` and `-v` read
+**outside first, inside second**: host port 8080 reaches container port 80, and
+the host's `site` directory appears read-only (`:ro`) at the inner path. `-e` sets
+an environment variable. `-it` attaches a terminal.
+
+## Compose files
+
+A **Compose file**, normally `compose.yaml`, declares containers, networks and
+volumes that belong together. Each entry under `services:` is a kind of container.
+[Compose file reference](https://docs.docker.com/reference/compose-file/).
+
+```yaml
+x-common: &common
+  restart: unless-stopped
+
+services:
+  web:
+    <<: *common
+    image: nginx:1.29-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - cache:/var/cache/nginx
+    environment:
+      GREETING: ${GREETING:-hello}
+  probe:
+    image: alpine:3.24
+    command: ["wget", "-qO-", "http://web/"]
+    depends_on: [web]
+    profiles: [debug]
+
+volumes:
+  cache:
+```
+
+- **`x-` and `&`, `*`, `<<`.** A top-level key starting with `x-` is ignored by
+  Compose ([extensions](https://docs.docker.com/reference/compose-file/extension/)).
+  `&common` is a YAML anchor naming a value, `*common` refers to it, and `<<:`
+  merges it into the map. This is how a Compose file avoids repetition
+  ([fragments](https://docs.docker.com/reference/compose-file/fragments/)).
+- **Names.** Containers find each other by service name, hence `http://web/`.
+  The project is named after the directory, so in a directory called `shop` this
+  makes the container `shop-web-1`, the network `shop_default` and the volume
+  `shop_cache`.
+- **`environment:`.** A map (`KEY: value`) and a list (`- KEY=value`) mean the
+  same. A bare `- KEY` in the list passes through the value from the shell running
+  Compose.
+- **`profiles:`.** A plain `up` leaves the service out. Naming the profile
+  (`--profile debug`) or the service (`docker compose run --rm probe`) includes it.
+- **`build:`.** Used instead of or beside `image:`, this builds the image, and
+  has its own settings: `context`, `dockerfile`, `target`, and `args` for values
+  that reach `ARG`.
+- **`networks:`.** Every service joins the project's default network unless it
+  lists others, which the top-level `networks:` declares.
+- **`secrets:` and `configs:`.** These appear at the top level and in a service,
+  and chapter 6 covers secrets. `configs:` has the same shape for files that are
+  not sensitive, mounted where the service asks.
+
+**Dollars.** Compose replaces variables before anything runs:
+
+| Form | Value |
+| --- | --- |
+| `${VAR}` | The variable, or empty with a warning |
+| `${VAR:-text}` | `text` if `VAR` is unset or empty |
+| `${VAR-text}` | `text` only if `VAR` is unset |
+| `${VAR:+text}` | `text` if `VAR` is set and not empty, otherwise empty |
+| `${VAR:?message}` | Stop with `message` if `VAR` is unset or empty |
+| `$$` | A literal `$`, so `$$5` reaches the container as `$5` |
+
+**Commands.** `docker compose` takes the same verbs as `docker`, applied to
+service names:
+
+| Command | Meaning |
+| --- | --- |
+| `docker compose up -d` | Create or update everything and start it |
+| `docker compose ps` | List this project's containers |
+| `docker compose exec web sh` | Run a process in the running `web` container |
+| `docker compose run --rm web sh` | Start a new, one-off `web` container |
+| `docker compose config` | Print the merged file with variables replaced |
+| `docker compose down` | Remove containers and networks, keeping named volumes |
+
+## Reading output
+
+`docker ps` shows one line per container (here with only two of its columns):
+
+```text
+STATUS       PORTS
+Up 2 hours   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+```
+
+`0.0.0.0:8080->80/tcp` means that port 8080 on every IPv4 host address reaches
+port 80 in the container, and `[::]` is the same for IPv6. `80/tcp` with no arrow means the image declares the port and
+nothing is published. With a health check, the status can read `Up 2 hours
+(healthy)` or `(unhealthy)`. `Restarting (1)` means a restart policy is retrying a
+process that exited with code 1.
+
+**Build output.** Lines such as `#6 [one 3/3] RUN echo hi` give a step number, the
+stage, and the instruction's place in that stage. `CACHED` means the step's earlier
+result was reused and the command did not run.
+
+**Exit codes.** `Exited (N)` is the main process's exit code. Above 128 it means
+death by signal, with the signal number added: `Exited (137)` is 128 + 9, SIGKILL,
+which is what `docker kill` sends and what `docker stop` sends if the process has
+not exited after 10 seconds. Failing to start at all gives 127 from `docker run`
+when the command does not exist.
+
+**Double braces.** `-f` or `--format` takes a Go template over the JSON, where
+`.State.Status` means that field and `json` prints a value as JSON:
+
+```sh
+docker inspect -f '{{ .State.Status }}' web
+docker inspect -f '{{ json .Config.Env }}' web
+```
+
+**Four kinds of substitution** are easy to confuse. `${VAR}` in a Compose file is
+replaced by Compose on the machine running it. `$VAR` in a `RUN` line is expanded
+by the shell during the build. `${VAR}` in other Dockerfile instructions, such as
+`FROM` and `COPY`, is expanded by the Dockerfile parser. `{{ .Field }}` is a Go
+template, in `docker -f` and in OpenBao Agent's templates below.
+
+## Look-alikes, and why both exist
+
+**Exec form and shell form.** `CMD ["sleep", "30"]`, with JSON brackets, runs the
+program directly. `CMD sleep 30` is stored as `/bin/sh -c "sleep 30"`, which gives
+shell features but can leave the shell, not your program, as process 1 to receive
+signals. `RUN`, `CMD` and `ENTRYPOINT` all accept both. Docker's reference
+recommends the exec form for `ENTRYPOINT`.
+
+**`ENTRYPOINT` and `CMD`.** The container runs an exec-form `ENTRYPOINT` with
+`CMD` as its arguments; a shell-form `ENTRYPOINT` ignores `CMD`. With `ENTRYPOINT ["echo", "fixed"]` and `CMD ["default"]`, the container
+prints `fixed default`; `docker run IMAGE changed` replaces `CMD` and prints
+`fixed changed`, and only `--entrypoint` replaces the entrypoint. A `CMD` alone is
+the whole default command.
+
+**`ENV` and `ARG`.** `ARG` exists for the build and `ENV` continues into every
+container, so `ENV` suits a default setting at run time. An `ARG` before the first
+`FROM` is usable only in `FROM` lines, and is empty inside the stage unless a bare
+`ARG NAME` there brings it in. Neither is
+a place for a secret, as chapter 2 shows.
+
+**`COPY` and `ADD`.** `ADD` also fetches URLs and unpacks local tar files. `COPY`
+only copies, so it is the default choice.
+
+**`RUN` and `CMD`.** `RUN` happens once at build time, and `CMD` every time a
+container starts.
+
+**`docker run`, `exec` and `start`.** `run` creates a new container, `exec` adds a
+process to a running one, and `start` restarts a stopped one with its writable
+layer intact.
+
+**Stopping and removing.** `docker stop` sends SIGTERM and later SIGKILL, and
+`docker kill` sends SIGKILL at once. Either way the container still exists until
+`docker rm`. In Compose, `stop` keeps containers, `down` removes them, and only
+`down -v` removes named volumes too.
+
+**Three kinds of mount.**
+[Storage](https://docs.docker.com/engine/storage/).
+
+```yaml
+volumes:
+  - ./site:/srv/site    # bind mount
+  - cache:/var/cache    # named volume
+tmpfs:
+  - /tmp/scratch        # memory
+```
+
+A **bind mount** is a host path, recognised by its leading `./` or `/`. A **named
+volume** is storage that Docker manages. A **tmpfs** is in memory and is gone when
+the container stops.
+
+**`docker compose` and `docker-compose`.** With a space it is the current plugin.
+With a hyphen it is usually the obsolete Python program or a compatibility
+wrapper. `compose.yaml` is preferred to the older name `docker-compose.yml`; with
+both present, Compose warns and uses the first. `compose.override.yaml`, if
+present, is merged in automatically.
+
+**`.env` and `env_file:`.** They look alike and do different jobs. Chapter 4
+explains the difference, which is a frequent cause of secrets ending up in the
+wrong place.
+
+## Where things live
+
+| Path | What it is |
+| --- | --- |
+| `/var/lib/docker` | The daemon's data: images, container layers, volumes, logs |
+| `/var/run/docker.sock` | The daemon's API; access to it amounts to root |
+| `/etc/docker/daemon.json` | Daemon configuration |
+| `~/.docker/config.json` | Client settings and, often, registry credentials |
+| `/run/secrets/NAME` | Where a secret appears inside a container, by convention |
+| `compose.yaml`, `.env` | In the project directory |
+
+## Encrypted files: SOPS and age
+
+**age** is an encryption tool. Its public key, a **recipient**, starts `age1`; its
+private key, an **identity**, starts `AGE-SECRET-KEY-1` and is what must never leak.
+`age-keygen -o key.txt` creates a pair, and `age-keygen -y key.txt` prints the
+recipient.
+
+**SOPS** encrypts the values in a structured file and leaves the keys readable.
+It finds the identity through `SOPS_AGE_KEY_FILE`, or by default in
+`~/.config/sops/age/keys.txt`. An encrypted YAML file looks
+like this, shortened:
+
+```yaml
+db:
+    password: ENC[AES256_GCM,data:fZnP,iv:...,tag:...,type:str]
+replicas: ENC[AES256_GCM,data:Wg==,iv:...,tag:...,type:int]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            ...
+          recipient: age16ljjqpuf...
+    mac: ENC[AES256_GCM,data:I5fw...]
+    version: 3.13.3
+```
+
+So `ENC[…]` is a ciphertext and the `sops:` block is metadata, listing who can
+decrypt. In a dotenv file the same metadata appears as lines such as `sops_mac=`
+and `sops_age__list_0__map_recipient=`. A file called `.sops.yaml` holds the
+rules for which recipients a new file gets, not secrets.
+
+```sh
+sops encrypt -i prod/app.yaml
+sops decrypt --extract '["db"]["password"]' prod/app.yaml
+```
+
+**Two others** appear in chapter 7. A string starting `$ANSIBLE_VAULT;1.1;AES256`,
+often after a `!vault |` tag, is ansible-vault ciphertext. A line such as
+`secretfile filter=git-crypt diff=git-crypt` in `.gitattributes` means git-crypt
+encrypts that path.
+
+## Secret services: OpenBao and Vault
+
+OpenBao's command is `bao`. It was forked from HashiCorp Vault's `vault`, so
+instructions look alike and some names remain: the agent's configuration still has
+a `vault { … }` block. `BAO_ADDR` and `BAO_TOKEN` say where and as whom. A token
+starts `s.` in OpenBao and `hvs.` in recent Vault
+([commands](https://openbao.org/docs/commands/)).
+
+**Paths.** Everything is addressed like a filesystem, and the leading components
+select what is mounted there, usually a **secrets engine**. In
+`database/creds/app`, `database/` is the engine, which treats `creds/app` as an
+instruction to issue a credential, so reading a path can create something.
+`auth/` holds auth methods, as in `auth/approle/login`, and `sys/` is the server's
+own API.
+
+```text
+$ bao kv get secret/app/db
+=== Secret Path ===
+secret/data/app/db
+...
+====== Data ======
+Key         Value
+---         -----
+password    LAB
+```
+
+**A path that changes.** As this output shows, the `kv` command turns
+`secret/app/db` into the API path `secret/data/app/db`, and a policy must name the
+API path. **Observed:** a token whose policy named `secret/app/*` got `permission denied`
+([KV v2](https://openbao.org/docs/secrets/kv/kv-v2/)).
+
+**HCL.** Server, agent and policy files are in HashiCorp Configuration Language:
+`key = value`, and blocks with optional labels. A server file has blocks such as
+`storage`, `listener`, `seal` and `audit "file" "NAME"`. An agent file has
+`auto_auth`, which holds the login `method`, and `template`. A policy is a list of paths with
+their permissions ([policies](https://openbao.org/docs/concepts/policies/)):
+
+```hcl
+path "database/creds/app" {
+  capabilities = ["read"]
+}
+```
+
+`<<-EOT … EOT` is an HCL multi-line string. Agent templates use one to hold a Go
+template, in which `with secret` fetches a path and `.Data` is the reply:
+
+```hcl
+template {
+  destination = "/run/app/db.env"
+  contents    = <<-EOT
+    {{ with secret "database/creds/app" }}
+    PGUSER={{ .Data.username }}
+    {{ end }}
+  EOT
+}
+```
+
+**Vocabulary.** Chapter 8 defines each of these: **seal** and **unseal**, **lease**
+and **TTL** (time to live), **auth method**, **AppRole**, with its **role ID** and
+**secret ID**, and **dynamic credentials**.
+
+## Kubernetes manifests
+
+Chapter 10 is optional and mentions a few Kubernetes objects. A manifest is YAML
+with `apiVersion`, `kind`, `metadata` and a body. In a Secret, `data:` values are
+base64, and `stringData:` takes plain text. A pod uses a Secret by name, as an
+environment variable through `secretKeyRef` or as files through a volume, and
+`subPath` mounts a single file from a volume. This excerpt follows the
+[Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/)
+and was not run:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-creds
+data:
+  API_KEY: czNjcmV0
+```
+
+## Everyday shorthand
+
+| Term | Meaning |
+| --- | --- |
+| Layer | One step's filesystem changes, stored in the image |
+| Registry | A server that stores images, reached by `push` and `pull` |
+| BuildKit, `buildx` | The current builder and its command-line plugin |
+| Daemon, `dockerd` | The server that does the work; `docker` is its client |
+| Context | The build's input directory, or (`docker context`) which daemon to use |
+| Swarm | Docker's own clustering mode, separate from Compose |
+| Secret zero | The first credential, which unlocks the others (chapter 5) |
+
+\newpage
+
+# What an image and a container really are
 
 Day-to-day use of `docker build` and `docker run` works with an image as an
 opaque artefact. Two facts about its structure explain most of part 2: an
@@ -141,7 +592,7 @@ Each line has a cause:
   `COPY` produced. `scan_image.py` found it by opening the layer tar from
   `docker save`.
 
-The same image built from `Dockerfile.fixed` (chapter 2) showed none of the
+The same image built from `Dockerfile.fixed` (chapter 3) showed none of the
 three markers in its history, configuration or layers.
 
 At run time, `docker run -e DB_PASSWORD=…` put the value in three places
@@ -157,7 +608,9 @@ with commands such as `docker history --no-trunc`, `docker image inspect` and
 a scan of `docker save` output. Warning signs: "the file is deleted in the
 Dockerfile, so it's gone", or "it is only a build argument".
 
-## Exercise 1: predict what leaks {#ex1}
+<span id="exercise-1"></span>
+
+## Exercise 1: predict what leaks
 
 For each Dockerfile fragment, say whether the secret value can be recovered
 from the final image, and from where.
@@ -170,7 +623,9 @@ from the final image, and from where.
 3. `RUN --mount=type=secret,id=tok,env=TOKEN ./fetch-deps.sh`, where the
    script writes `~/.npmrc` containing the token.
 
-# Building beyond `docker build .` {#build}
+[Worked answer](#answer-1)
+
+# Building beyond `docker build .`
 
 BuildKit has been the default builder on Linux since Engine 23; the legacy
 builder is deprecated
@@ -260,7 +715,7 @@ Two caveats are easy to miss:
 - **What the step writes persists.** The mount keeps the secret out of the
   layers; it cannot stop the command from copying it into the filesystem.
   This is not stated as a sentence in the documentation; it follows from the
-  layer model in chapter 1. Package managers that write credentials into a
+  layer model in chapter 2. Package managers that write credentials into a
   config file (`.npmrc`, `pip.conf`, `.netrc`) are the usual cause.
 
 For cloning private repositories, prefer `RUN --mount=type=ssh` with
@@ -306,7 +761,9 @@ signs: `ARG` for tokens "because it is only at build time"; relying on a
 clean `--check` as proof; a cache-busting argument missing where a rotated
 secret must take effect.
 
-## Exercise 2: review a Dockerfile {#ex2}
+<span id="exercise-2"></span>
+
+## Exercise 2: review a Dockerfile
 
 An agent submits:
 
@@ -325,7 +782,9 @@ CMD ["python", "/app/main.py"]
 problems in order of severity, say which ones `--check` would catch, and
 sketch the fix.
 
-# Running beyond `docker run` {#run}
+[Worked answer](#answer-2)
+
+# Running beyond `docker run`
 
 ## Compose v5
 
@@ -359,7 +818,7 @@ interpolated; `environment` literal values; `env_file`; the image's `ENV`
 
 `docker compose config` prints the fully interpolated model, so anything
 interpolated into `environment:` appears in plaintext in its output, and in
-any CI log that runs it. Lab 2 shows this (chapter 5).
+any CI log that runs it. Lab 2 shows this (chapter 6).
 
 ## Start order, profiles and overrides
 
@@ -400,7 +859,7 @@ Each of these reduces what a compromised process can do. All are long-standing
 | `init: true` | A small init reaps zombies, forwards signals | None |
 | `mem_limit`, `cpus`, `pids_limit` | Bounds resource use | Must be sized |
 
-Running as non-root matters directly for secrets: chapter 5 shows a non-root
+Running as non-root matters directly for secrets: chapter 6 shows a non-root
 container failing to read a secret file that a root container reads without
 trouble.
 
@@ -431,7 +890,7 @@ no public statement about its future, and Mirantis has committed to
 supporting it through at least 2030
 ([Mirantis](https://www.mirantis.com/blog/mirantis-guarantees-long-term-support-for-swarm/)).
 It matters here only because Docker's best-designed secret mechanism is a
-Swarm feature (chapter 5). Adopting Swarm for that alone is rarely justified.
+Swarm feature (chapter 6). Adopting Swarm for that alone is rarely justified.
 
 ## Questions for an agent
 
@@ -442,7 +901,9 @@ out values that will appear in `config` output. Warning signs: `version:` at
 the top; `.env` described as "passed to the containers"; hardening options
 added without checking that the image works as the configured user.
 
-## Exercise 3: read a Compose file {#ex3}
+<span id="exercise-3"></span>
+
+## Exercise 3: read a Compose file
 
 ```yaml
 services:
@@ -460,7 +921,9 @@ LOG_LEVEL=error`. What are `DATABASE_URL`, `LOG_LEVEL` and `DB_PASSWORD`
 inside the container, and which of these values appear in `docker compose
 config` output?
 
-# Why the repository model breaks {#repository}
+[Worked answer](#answer-3)
+
+# Why the repository model breaks
 
 Keeping secrets in a private repository with tightly restricted access is a
 coherent model with a precise flaw. It is worth stating the model carefully,
@@ -542,7 +1005,7 @@ Rotation cost varies by kind, and that cost shapes the design:
 
 - **Credentials you issue**, such as database passwords and internal API
   tokens. You control both sides, so they can be rotated automatically or
-  replaced by short-lived, per-consumer credentials (chapter 7).
+  replaced by short-lived, per-consumer credentials (chapter 8).
 - **Credentials issued to you**, such as third-party API keys and registry
   tokens. Rotation means a vendor console or API, and often a manual step.
 - **Keys**, for signing, encryption, TLS and SSH. Rotating them affects
@@ -562,7 +1025,9 @@ estimates rotation effort per consumer. Warning signs: "only three people have
 access to the repo" offered as the whole answer; "we'll purge it from git
 history" offered as revocation.
 
-## Exercise 4: who holds the password? {#ex4}
+<span id="exercise-4"></span>
+
+## Exercise 4: who holds the password?
 
 The production database password has been in a private repository since
 2022. Five people have had access; two have left, and their access was
@@ -572,7 +1037,9 @@ Nightly host backups include `/var/lib/docker`. Enumerate the access set as
 fully as you can, then say what must happen for the two leavers to lose
 access.
 
-# Secrets inside Docker {#docker-secrets}
+[Worked answer](#answer-4)
+
+# Secrets inside Docker
 
 Whatever stores the secret, it must eventually reach a process in a
 container. This chapter covers what Docker itself offers for that last step,
@@ -603,7 +1070,7 @@ inspect`.
 That is a preference, not an absolute. Many programs accept credentials only
 through the environment. When that is the case, set the variable in the
 process that needs it, at the last moment (a wrapper reading a file, or
-`sops exec-env`, chapter 6), rather than in the container's configuration.
+`sops exec-env`, chapter 7), rather than in the container's configuration.
 
 ## Compose secrets without Swarm
 
@@ -762,7 +1229,9 @@ rotation sequence that includes the authority. Warning signs: secrets with
 `uid`/`mode` on a `file:` source presented as protection; `external: true`
 outside Swarm; rotation described as "update the file and run `up -d`".
 
-## Exercise 5: review a Compose change {#ex5}
+<span id="exercise-5"></span>
+
+## Exercise 5: review a Compose change
 
 An agent proposes this to remove passwords from `environment:`:
 
@@ -783,7 +1252,11 @@ The agent reports: "Tested with `docker compose config`: valid." Predict
 what happens at run time, explain why the test did not catch it, and give two
 acceptable fixes with their tradeoffs.
 
-## Exercise 6: predict a rotation {#ex6}
+[Worked answer](#answer-5)
+
+<span id="exercise-6"></span>
+
+## Exercise 6: predict a rotation
 
 Lab 4 renders credentials into `/run/app/db.env` on a volume mounted at
 `/run/app` (a directory). The agent rewrites the file by rename every time the
@@ -791,12 +1264,14 @@ credential changes. The application reads `db.env` once at start-up and keeps
 a connection pool. What does the application do when the credential is
 replaced and the old one revoked, and what would fix it?
 
-# Model one: encrypted files in git {#sops}
+[Worked answer](#answer-6)
+
+# Model one: encrypted files in git
 
 The smallest change to the repository model keeps git as the store and
 distribution channel but stores only ciphertext. Git then provides history,
 review and deployment from a commit; cryptography decides who can read. The
-flaw from chapter 4 remains in a sharper form: whoever could decrypt a commit
+flaw from chapter 5 remains in a sharper form: whoever could decrypt a commit
 can decrypt it for ever.
 
 ## SOPS: envelope encryption per file
@@ -872,7 +1347,7 @@ In dotenv format, every value is encrypted, including the harmless
 `DB_USER`. In YAML or JSON, `encrypted_regex` or `unencrypted_suffix` can leave
 chosen values readable.
 
-Step 4 is chapter 4's argument made concrete. `sops updatekeys` re-wraps the
+Step 4 is chapter 5's argument made concrete. `sops updatekeys` re-wraps the
 existing data key for the new recipient list, so the new commit is closed to
 Alice; the old commit still carries a copy of the data key wrapped to her.
 `sops rotate` generates a new data key, but the *values* are unchanged and the
@@ -968,7 +1443,9 @@ updatekeys`" as the whole leaver procedure; an age identity committed
 alongside the repository or baked into an image; plaintext output written
 inside the working tree.
 
-## Exercise 7: plan a departure {#ex7}
+<span id="exercise-7"></span>
+
+## Exercise 7: plan a departure
 
 The repository uses the `.sops.yaml` above. Alice leaves today. She had
 `prod/` and `dev/` access for two years; her laptop is returned and wiped.
@@ -976,7 +1453,9 @@ Write the procedure, in order, with what each step achieves. Then say what
 would be different if the recipients were a cloud KMS key that Alice could
 use only through her SSO identity.
 
-# Model two: a secret service {#service}
+[Worked answer](#answer-7)
+
+# Model two: a secret service
 
 The second model replaces a file that is copied with a service that is
 asked. The value never has to exist anywhere but the service and the
@@ -1074,14 +1553,14 @@ metadata) make the record attributable; the lab did not exercise this.
 - **Secret zero is still there.** Lab 4 placed the AppRole role ID and secret
   ID on disk, world-readable inside a 0700 directory, so the non-root agent
   could read them through a directory mount; a directory mount, unlike the
-  single-file mount in chapter 5, enforces the directory's own mode inside
+  single-file mount in chapter 6, enforces the directory's own mode inside
   the container (the agent first failed with "no known role ID" when the
   directory was 0700 and owned by root). In production the secret ID is a
   provisioning-time credential: delivered once by Ansible, limited in uses or
   lifetime, bound to source addresses, or delivered as a *response-wrapped*
   single-use token
   ([response wrapping](https://openbao.org/docs/concepts/response-wrapping/)).
-  Better still is an identity the platform already provides (chapter 8).
+  Better still is an identity the platform already provides (chapter 9).
 - **Unseal and recovery material** become the most sensitive secrets in the
   organisation: Shamir shares held by named people, or the KMS key used for
   auto-unseal.
@@ -1158,7 +1637,9 @@ used?" A good answer covers new logins *and* existing sessions, and names the
 evidence (the database's session list, the authority's own logs). Warning
 sign: "the lease is revoked" offered as proof.
 
-## Exercise 8: design the bootstrap {#ex8}
+<span id="exercise-8"></span>
+
+## Exercise 8: design the bootstrap
 
 Thirty hosts run Compose services that will fetch credentials from an
 OpenBao cluster through an agent on each host, using AppRole. Hosts are
@@ -1166,9 +1647,11 @@ built by OpenTofu and configured by Ansible. Propose how each host's role ID
 and secret ID are created, delivered, stored and replaced, and state what an
 attacker who obtains one host's disk image could do.
 
-# Delivery, identity and comparison {#compare}
+[Worked answer](#answer-8)
 
-Chapters 6 and 7 can be compared fairly only after splitting "secret
+# Delivery, identity and comparison
+
+Chapters 7 and 8 can be compared fairly only after splitting "secret
 management" into three decisions that proposals often blur.
 
 ## Three separate decisions
@@ -1224,7 +1707,7 @@ replaced by an exchange of short-lived, signed tokens:
   is disabled.
 
 A credential that is issued per request and expires in minutes needs no
-rotation procedure. This is the strongest available answer to chapter 4: the
+rotation procedure. This is the strongest available answer to chapter 5: the
 access set of each value is one consumer, for a short time.
 
 ## The models compared
@@ -1254,7 +1737,9 @@ Warning signs: a product name in place of a design; "the service handles
 security"; an identity that is a long-lived token stored in the same place as
 the secrets it unlocks.
 
-## Exercise 9: choose under constraints {#ex9}
+<span id="exercise-9"></span>
+
+## Exercise 9: choose under constraints
 
 For each situation, choose a storage model and a delivery pattern, and give
 the one fact that most drives the choice.
@@ -1267,10 +1752,12 @@ the one fact that most drives the choice.
    databases, an auditor asking who accessed production credentials, and an
    SRE team already on call.
 
-# Kubernetes later (optional) {#kubernetes}
+[Worked answer](#answer-9)
+
+# Kubernetes later (optional)
 
 Read this chapter if Kubernetes is a realistic destination; it needs chapters
-5 and 8. The aim is not to design a cluster but to make today's choice one
+6 and 9. The aim is not to design a cluster but to make today's choice one
 that carries forward.
 
 ## What a Kubernetes Secret is
@@ -1297,7 +1784,7 @@ Three properties surprise people used to files on a host:
 - **Delivery.** Mounted Secrets live on a tmpfs on nodes that run pods
   needing them. Volume mounts are updated eventually when the Secret changes;
   `subPath` mounts and environment variables are not, until the pod restarts.
-  The rotation lessons of chapter 5 carry over directly.
+  The rotation lessons of chapter 6 carry over directly.
 
 ## Getting secrets from a store into pods
 
@@ -1346,7 +1833,9 @@ triggers the restart. Warning sign: "the operator syncs it" offered as the
 whole answer, since syncing the Secret object is not the same as the process
 reading it.
 
-## Exercise 10: predict an update {#ex10}
+<span id="exercise-10"></span>
+
+## Exercise 10: predict an update
 
 A Deployment uses one Secret three ways: as an environment variable
 `API_KEY`, as a volume mounted at `/etc/creds/`, and as a single file mounted
@@ -1354,7 +1843,9 @@ with `subPath` at `/etc/app/token`. ESO updates the Secret with a new value.
 Without a pod restart, which of the three show the new value, and what would
 an agent need to add so that the application uses it?
 
-# Choosing and migrating {#choose}
+[Worked answer](#answer-10)
+
+# Choosing and migrating
 
 ## Questions that change the answer
 
@@ -1420,11 +1911,11 @@ stated assumptions, not a universal answer.
   repository *including full history*, over image histories and
   configurations, Compose files, `.env` files on hosts, CI variables and
   `~/.docker/config.json` on build hosts.
-- Classify each finding by kind (chapter 4) and by consumer.
+- Classify each finding by kind (chapter 5) and by consumer.
 - Turn on `# check=error=true` in Dockerfiles and a scanner in CI and
   pre-commit hooks, so new leaks fail early. Neither catches everything.
 - Remove secrets from `ENV`, `ARG` and `-e`, using build secrets and Compose
-  secrets (chapter 5).
+  secrets (chapter 6).
 
 **Stage 1: new store, one service end to end.** Choose a low-risk service
 with a database credential. Move its secrets into the new store, deliver them
@@ -1441,7 +1932,7 @@ stages 1–2 did that.
 
 ## Rotation without an outage
 
-The lab's failed login after "rotation" (chapter 5) has a standard fix: let
+The lab's failed login after "rotation" (chapter 6) has a standard fix: let
 two credentials be valid during the change.
 
 1. Create the new credential at the authority while the old one still works
@@ -1518,13 +2009,19 @@ rotation is one-way: once the old value is revoked, rolling back the delivery
 mechanism without the new value breaks the service. Warning signs: rollback
 described as "revert the commit"; no list of values rotated in each step.
 
-## Exercise 11: acceptance criteria {#ex11}
+<span id="exercise-11"></span>
+
+## Exercise 11: acceptance criteria
 
 Write five acceptance criteria, each with the evidence that demonstrates it,
 for moving one Compose service's PostgreSQL password from a private
 repository to SOPS-encrypted files deployed by Ansible (design 1, pattern A).
 
-## Exercise 12: diagnose {#ex12}
+[Worked answer](#answer-11)
+
+<span id="exercise-12"></span>
+
+## Exercise 12: diagnose
 
 After moving a service to OpenBao dynamic credentials with a host agent
 (pattern B, `default_ttl=1h`, `max_ttl=24h`; the agent renders the file but
@@ -1534,9 +2031,19 @@ The agent's log shows a new credential rendered shortly before each episode.
 An agent proposes raising `max_ttl` to 30 days. Give the most likely cause,
 the evidence that would confirm it, and a better fix.
 
-# Worked answers {.unnumbered #answers}
+[Worked answer](#answer-12)
 
-## Exercise 1 {.unnumbered}
+<span class="unnumbered"></span>
+
+# Worked answers
+
+<span id="answer-1"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 1
+
+[Back to exercise 1](#exercise-1)
 
 1. Recoverable. `COPY` is its own instruction and produces a layer containing
    the key; the later `rm` only adds a whiteout. Had the key arrived and been
@@ -1553,7 +2060,13 @@ the evidence that would confirm it, and a better fix.
    (for npm, `NPM_CONFIG_USERCONFIG=/run/secrets/npmrc`) so that nothing is
    written.
 
-## Exercise 2 {.unnumbered}
+<span id="answer-2"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 2
+
+[Back to exercise 2](#exercise-2)
 
 In order of severity:
 
@@ -1575,7 +2088,13 @@ In order of severity:
 `SENTRY_DSN` contain no word from the rule's list, and the rule does not look
 at `COPY` or values. This is why a clean check is weak evidence.
 
-## Exercise 3 {.unnumbered}
+<span id="answer-3"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 3
+
+[Back to exercise 3](#exercise-3)
 
 Observed on Compose 5.6.0 with this exact setup:
 
@@ -1592,7 +2111,13 @@ Observed on Compose 5.6.0 with this exact setup:
 `environment` as well as interpolating. Both passwords therefore appear in any
 log that runs it.
 
-## Exercise 4 {.unnumbered}
+<span id="answer-4"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 4
+
+[Back to exercise 4](#exercise-4)
 
 The access set includes at least: all five people, including the two leavers,
 through clones on laptops, laptop backups and any synced folders; the git host
@@ -1607,7 +2132,13 @@ the password at the database (with a transition so the service stays up), and
 to stop delivering it through `-e` so that the next value has a smaller access
 set.
 
-## Exercise 5 {.unnumbered}
+<span id="answer-5"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 5
+
+[Back to exercise 5](#exercise-5)
 
 At start-up the worker, running as UID 1000, gets `Permission denied` reading
 `/run/secrets/smtp_password`: a `file:` secret is a bind mount, `uid` and
@@ -1628,11 +2159,17 @@ container or reads the file as the container's user. Fixes:
 Making the file 0444 inside a 0700 directory also works and was used in lab
 2; it relies entirely on the directory to keep other host users out.
 
-## Exercise 6 {.unnumbered}
+<span id="answer-6"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 6
+
+[Back to exercise 6](#exercise-6)
 
 The directory mount lets the application *see* the new file, but it read
 `db.env` once, so it keeps the old credential in memory. Connections already
-open keep working even after revocation (observed in chapter 7: an open
+open keep working even after revocation (observed in chapter 8: an open
 session survived the role being dropped). The failure appears later, when the
 pool opens a new connection (growth, a database restart, a recycled
 connection) with the old, now invalid credential, so it is intermittent and
@@ -1642,7 +2179,13 @@ connection, and set the pool's maximum connection lifetime below the
 credential's lifetime. If revoked credentials must stop working immediately,
 the revocation statements must also terminate their sessions.
 
-## Exercise 7 {.unnumbered}
+<span id="answer-7"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 7
+
+[Back to exercise 7](#exercise-7)
 
 1. Remove Alice's recipient from both rules in `.sops.yaml`, run `sops
    updatekeys` on every file, commit. This closes *future* commits to her and
@@ -1665,7 +2208,13 @@ known to her, so they must still be rotated; the KMS's log of her decryption
 calls narrows the list (how precisely depends on whether the calls can be
 tied to files), instead of requiring every value to be assumed exposed.
 
-## Exercise 8 {.unnumbered}
+<span id="answer-8"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 8
+
+[Back to exercise 8](#exercise-8)
 
 A sound design:
 
@@ -1699,7 +2248,13 @@ destroyed. Per-host policies keep this to one host's secrets. Moving to
 platform identity (TLS certificates issued at provisioning, or Kubernetes auth
 later) removes the reusable secret ID.
 
-## Exercise 9 {.unnumbered}
+<span id="answer-9"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 9
+
+[Back to exercise 9](#exercise-9)
 
 1. SOPS with age (identities for the person and the VM), pattern A, or even
    root-only files on the host with Compose `file:` secrets. Driving fact: one
@@ -1717,7 +2272,13 @@ later) removes the reusable secret ID.
    issued database credentials, with a team able to run a tier-0 service. A
    cloud manager is the alternative if the fleet moves into one cloud.
 
-## Exercise 10 {.unnumbered}
+<span id="answer-10"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 10
+
+[Back to exercise 10](#exercise-10)
 
 Only the volume mount at `/etc/creds/` changes, and only eventually, after
 the kubelet's next sync. The environment variable keeps the value from pod
@@ -1728,7 +2289,13 @@ the pod template annotations, or a reloader that restarts the Deployment), or
 make the application read the mounted file when it needs the credential and
 stop using the environment variable and `subPath` mount for it.
 
-## Exercise 11 {.unnumbered}
+<span id="answer-11"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 11
+
+[Back to exercise 11](#exercise-11)
 
 For example:
 
@@ -1748,7 +2315,13 @@ For example:
    the service uses without failed requests in its logs, and criterion 1 then
    holds for the previous value.
 
-## Exercise 12 {.unnumbered}
+<span id="answer-12"></span>
+
+<span class="unnumbered"></span>
+
+## Exercise 12
+
+[Back to exercise 12](#exercise-12)
 
 Most likely: at the 24-hour `max_ttl` the lease cannot be renewed further,
 so the agent fetches a new credential and the old one expires. The application
@@ -1764,7 +2337,9 @@ long-lived ones. Better: reload or restart the application from the agent's
 connection, and set the pool's connection lifetime below the credential's
 lifetime.
 
-# Field reference {.unnumbered #reference}
+<span class="unnumbered"></span>
+
+# Field reference
 
 | Need | Command or setting |
 | --- | --- |
@@ -1787,9 +2362,13 @@ lifetime.
 | Rotate DB admin | `bao write -f database/rotate-root/NAME` |
 | Audit device (OpenBao 2.3.2 and later) | `audit "file" "NAME" { options { file_path = … } }` in server config |
 
-# Labs, sources and verification {.unnumbered #appendix}
+<span class="unnumbered"></span>
 
-## Files {.unnumbered}
+# Labs, sources and verification
+
+<span class="unnumbered"></span>
+
+## Files
 
 All under `docker-secrets/examples/`:
 
@@ -1806,7 +2385,9 @@ Every value in the labs is a lab marker. Run them only against a disposable
 Docker daemon; `README.md` shows how to use a Docker-in-Docker container for
 that.
 
-## Versions and sources {.unnumbered}
+<span class="unnumbered"></span>
+
+## Versions and sources
 
 Target: Docker Engine 29.9 (29.9.2 current), Compose v5.6, Buildx 0.38,
 BuildKit 0.34, Dockerfile frontend 1.28; SOPS 3.13.3; age 1.3.2; OpenBao
@@ -1814,17 +2395,20 @@ BuildKit 0.34, Dockerfile frontend 1.28; SOPS 3.13.3; age 1.3.2; OpenBao
 Kubernetes 1.37, Vault 2.2, External Secrets Operator 2.13, Sealed Secrets
 0.40, cloud and SaaS managers. Research date: 21 October 2026. Primary
 sources are linked beside each claim; documentation URLs are mutable and were
-read on that date.
+read on that date. Chapter 1 was researched on 3 November 2026.
 
-## What was and was not verified {.unnumbered}
+<span class="unnumbered"></span>
 
-`verification.md` records the runs. All four labs ran in full on Docker
+## What was and was not verified
+
+`verification.md` records the runs. Chapter 1's examples ran on 3 November 2026 on
+Docker Engine 29.9.2 with Compose 5.6.1, apart from those it lists. All four labs ran in full on Docker
 Engine 29.9.1 with Compose 5.6.0 and Buildx 0.38.0 (containerd image store),
 in a Docker-in-Docker container, plus SOPS 3.13.3 and age 1.3.2 on the host;
 exercise 3 and the open-session revocation check were run separately on the
 same daemon. Not run: Swarm secrets, rootless mode, attestations, multi-platform
-builds, Bake, Kubernetes and every tool in chapter 9, Vault, cloud and SaaS
+builds, Bake, Kubernetes and every tool in chapter 10, Vault, cloud and SaaS
 managers, an OpenBao deployment outside dev mode (storage, HA, unseal,
 response wrapping, `exec` restarts), Ansible's `community.sops`, Flux, and the
-scanners named in chapter 10. Prices and product status come from vendor pages
+scanners named in chapter 11. Prices and product status come from vendor pages
 on the research date.

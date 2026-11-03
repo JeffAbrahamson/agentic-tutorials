@@ -4,11 +4,11 @@ PDF_ENGINE ?= xelatex
 .PHONY: all clean
 all: docker-secrets.pdf
 
-docker-secrets.pdf: tutorial.md pdf-header.tex code-breaks.lua Makefile
+docker-secrets.pdf: tutorial.md pdf-header.tex code-breaks.lua span-markers.lua Makefile
 	mkdir -p .build
 	$(PANDOC) tutorial.md --standalone --toc --toc-depth=2 \
 	  --number-sections --pdf-engine=$(PDF_ENGINE) \
-	  --include-in-header=pdf-header.tex --lua-filter=code-breaks.lua \
+	  --include-in-header=pdf-header.tex --lua-filter=code-breaks.lua --lua-filter=span-markers.lua \
 	  --highlight-style=tango --resource-path=. \
 	  --metadata=lang:en-GB \
 	  --variable=documentclass:article \

@@ -90,6 +90,23 @@ Run on the same daemon with the exercise's files.
 | `DB_PASSWORD` | `other` |
 | `docker compose config` | Printed both `DATABASE_URL` with `s3cret` and `DB_PASSWORD: other` |
 
+## Reading primer, 3 November 2026
+
+Chapter 1's Docker and Compose examples ran on Engine 29.9.2 with Compose 5.6.1 in a disposable `docker:29.9.2-dind` container. The `age` and SOPS commands ran on the host with the lab's checksum-verified binaries, and the OpenBao commands in an `openbao/openbao:2.7.1` dev-mode container. Observations:
+
+- `hello` printed the output shown, and a command given to `docker run` replaced its `CMD`. With `ENTRYPOINT ["echo", "fixed"]` and `CMD ["default"]`, the three forms printed `fixed default`, `fixed changed` and `replaced`.
+- The stored configuration showed `CMD sleep 30` as `["/bin/sh","-c","sleep 30"]` and the exec form unchanged. An `ENV` value was in `Config.Env` and an `ARG` was not. An `ARG` before `FROM` was empty inside the stage.
+- `RUN false; echo` succeeded and `RUN false && echo` failed the build. The here-document forms of `RUN` and `COPY` ran, as did `--target`.
+- `docker stop` on a process ignoring SIGTERM took about 10 seconds and gave `Exited (137)`, as did `docker kill` at once. A missing command made `docker run` exit with 127. An image with `EXPOSE 80` showed `80/tcp` with no arrow.
+- The Compose file ran as shown under a directory called `comp`, giving `comp-web-1`, `comp_default` and `comp_cache`; the chapter's `shop` names follow that pattern. The anchor merged, `probe` reached `http://web/`, and `probe` stayed out of a plain `up`.
+- `${VAR}`, `:-`, `-`, `:+`, `:?` and `$$` behaved as tabled, including for an empty variable. A bare `- KEY` passed the shell's value through. `configs:` mounted its file at the target, and `tmpfs:` gave a tmpfs. `down` kept the named volume and `down -v` removed it. With both file names present, Compose warned and used `compose.yaml`; `compose.override.yaml` was merged.
+- The SOPS excerpt is real output, shortened. Dotenv metadata lines and `--extract` were as shown. `ansible-vault encrypt_string` produced the `!vault` and `$ANSIBLE_VAULT;1.1;AES256` form.
+- `bao kv get` printed the output shown, with `secret/data/app/db` as its path. A token under a policy on `secret/data/app/*` could read the value, and one under `secret/app/*` got `permission denied`. A token began `s.`. Decryption with the default key path was checked with SOPS 3.13.3.
+
+**Not run in this form:** the `golang:1.25` stage fragment, which has no source to build (a two-stage build ran on Alpine, without `COPY --from`); the `--platform` flag; the `build:` and `networks:` settings, which `docker compose config` accepted but no build used; the `docker run -d … -p … -v` example, whose port and mount forms ran through Compose; a `Up … (healthy)` status, which appears only with a health check; the agent `template` excerpt, which is shortened from lab 4's working file; the Kubernetes Secret, whose form comes from the documentation. The `Up 2 hours` status is illustrative. The `hvs.` prefix and the git-crypt `.gitattributes` line come from HashiCorp's and git-crypt's documentation.
+
+Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 12 links each way, all landing on the right heading.
+
 ## Not verified
 
 **Not run:**
@@ -97,14 +114,14 @@ Run on the same daemon with the exercise's files.
 - Rootless mode
 - Attestations and provenance contents
 - Multi-platform builds and Bake
-- Kubernetes and every tool in chapter 9, including exercise 12's update behaviour, which comes from the Kubernetes documentation
+- Kubernetes and every tool in chapter 10, including exercise 10's update behaviour, which comes from the Kubernetes documentation
 - HashiCorp Vault
 - Cloud and SaaS managers
 - OpenBao outside dev mode: storage, HA, unseal, response wrapping, and agent `exec`
 - Ansible `community.sops`
 - Flux
 - gitleaks and TruffleHog
-- The Dockerfile fragments in exercises 1 and 2, and the Compose fragments in chapter 3 and exercise 5. Exercise 5's outcome follows from lab 2 steps 2 and 4.
+- The Dockerfile fragments in exercises 1 and 2, and the Compose fragments in chapter 4 and exercise 5. Exercise 5's outcome follows from lab 2 steps 2 and 4.
 
 **Not confirmed:**
 - SOPS support for age post-quantum recipients.
