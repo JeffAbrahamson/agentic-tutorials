@@ -39,15 +39,16 @@ Persist a concise learner brief containing the goals, prior knowledge, intended 
 
 Organise the outline around capabilities and decisions. Use this progression as a guide:
 
-1. Fundamentals and a predictive mental model.
-2. Routine work with a small, coherent example.
-3. Design and maintenance as the system grows.
-4. Diagnosis, partial failure, and recovery.
-5. Advanced topics relevant to the learner's intended work.
+1. A reading primer for the technology's notation and everyday constructs (see "Open with a reading primer" below).
+2. Fundamentals and a predictive mental model.
+3. Routine work with a small, coherent example.
+4. Design and maintenance as the system grows.
+5. Diagnosis, partial failure, and recovery.
+6. Advanced topics relevant to the learner's intended work.
 
 Introduce verification and failure behaviour throughout, even when they also deserve dedicated chapters. Make specialised features optional branches with a reason to read them and clear prerequisites.
 
-For each substantial chapter, identify the learning outcome and answer: **“What can I now judge that I could not judge before?”** Map the outline to the brief so that essential outcomes are covered and irrelevant feature tours are omitted. Save the outline with the tutorial artifacts; do not require a separate approval unless the learner requests it or a material scope question remains.
+For each substantial chapter, identify the learning outcome and answer: **“What can I now judge that I could not judge before?”** The primer answers a different question: **“What can I now read?”** Map the outline to the brief so that essential outcomes are covered and irrelevant feature tours are omitted. Save the outline with the tutorial artifacts; do not require a separate approval unless the learner requests it or a material scope question remains.
 
 ### 3. Research authoritative behaviour
 
@@ -60,6 +61,23 @@ If browsing or the relevant environment is unavailable, state what could not be 
 ### 4. Write for technical judgement
 
 Build a coherent explanation from fundamentals to realistic work. Use familiar concepts as bridges, explicitly identifying where analogies stop being accurate. Introduce terms before relying on them, and give enough causal explanation for the learner to predict behaviour.
+
+**Open with a reading primer.** Chapter 1 teaches the learner to read the technology, because reviewing generated work starts with being able to parse it. This is reading fluency, not the writing fluency or memorised syntax the tutorial otherwise avoids. Its test: shown an ordinary file, command, or output from a real project, the learner can say what kind of thing each construct is, roughly what it does, and what name to look up or ask about. Judging whether it is right is left to later chapters.
+
+Survey the technology as the first pages of a language tutorial would, covering whichever of these apply:
+
+- The smallest complete example, how to run it, and what it prints: hello world.
+- Core forms: how to set and use a value, define and call the unit of reuse, branch, iterate, handle errors, and write the common data structures. If the technology lacks one of these, say so and show what people do instead.
+- Idioms and shorthands too common to skip and too dense to guess, such as Python's comprehensions.
+- Names, punctuation, and file locations that carry meaning by rule or convention, such as Python's leading underscores and double underscores.
+- Look-alikes: constructs that seem to do the same job, why both exist, and when each is used, such as Python's `__slots__` and `__dict__`.
+- Where the artefacts live, and the everyday commands that act on them.
+
+When the technology has no language of its own, as with a message broker, apply the same survey to what its users actually read: configuration, command lines, client API calls, output, and vocabulary.
+
+Choose items by how often they appear in real projects and how hard they are to guess, not only by what later chapters use. A construct common in the wild belongs here even if the running example never needs it. Teach this technology's notation rather than general programming, using the assumed background for comparisons.
+
+Keep each item brief, but set no target length for the chapter: it takes what the subject's complexity needs. Give most items a sentence and a minimal example of a few lines. When an item needs more, say just enough to recognise it and point to the chapter that explains it, rather than anticipating that chapter's causal explanation. Examples may stand alone instead of using the running example. The primer needs no exercises, questions for an agent, or the causal explanation required of other samples, though its claims and examples are verified like any others. Omit or shorten it only when the brief records that the learner already reads the technology fluently.
 
 Cover the following where applicable to the subject and learner's goals:
 
@@ -103,6 +121,7 @@ Report which checks actually ran, their results, and any remaining limits. If a 
 Review the finished tutorial against the learner brief as well as technical correctness. Revise any chapter that:
 
 - Assumes unexplained prerequisites or teaches a misleading mental model.
+- Uses a construct that neither the primer covers nor the chapter explains where it appears, or leaves the primer short of its reading test.
 - Echoes the brief, the interview, or this skill instead of teaching the subject.
 - Provides code without explaining the consequential behaviour or tradeoff.
 - Treats one example architecture as universally correct.
