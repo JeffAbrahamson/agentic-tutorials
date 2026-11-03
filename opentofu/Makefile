@@ -4,11 +4,12 @@ PDF_ENGINE ?= xelatex
 .PHONY: all clean
 all: opentofu.pdf
 
-opentofu.pdf: tutorial.md pdf-header.tex Makefile
+opentofu.pdf: tutorial.md pdf-header.tex span-markers.lua Makefile
 	mkdir -p .build
 	$(PANDOC) tutorial.md --standalone --toc --toc-depth=1 \
 	  --number-sections --pdf-engine=$(PDF_ENGINE) \
-	  --include-in-header=pdf-header.tex --highlight-style=tango \
+	  --include-in-header=pdf-header.tex --lua-filter=span-markers.lua \
+	  --highlight-style=tango \
 	  --resource-path=. --metadata=lang:en-GB \
 	  --variable=documentclass:article --variable=fontsize:12pt \
 	  --variable=mainfont:'Latin Modern Roman' \

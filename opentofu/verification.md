@@ -24,11 +24,25 @@ Plan assertions examined `tofu show -json` output, including per-resource action
 
 ## Publication checks
 
-- `make -C opentofu` succeeded with Pandoc and XeLaTeX; the delivered PDF was rebuilt after the final source/layout changes. It has 45 pages, a compact linked contents page, 160 × 230 mm pages, 12-point Latin Modern Roman and Latin Modern Mono code.
-- All 45 final pages were rendered and visually inspected in contact sheets. Contents and appendix numbering are consistent, short code blocks are kept whole on one page, and extracted text bounding boxes showed no horizontal clipping. Long code samples and tables can continue across pages.
-- Markdown checks inspected all 16 paired code fences, table structure, Pandoc's parsed headers and links, and supporting-file references. The three complete configuration blocks and the test block match their supplied files. There are ten numbered chapters; authoring context remains outside the tutorial.
-- All 44 distinct external source URLs, including the input-precedence fragment URL, returned HTTP 200. Local supporting references exist. HTTP resolution checks complement, rather than replace, the source checks described above.
+- `make -C opentofu` succeeded with Pandoc and XeLaTeX; the delivered PDF was rebuilt after the final source/layout changes. It has 56 pages, a compact linked contents page, 160 × 230 mm pages, 12-point Latin Modern Roman and Latin Modern Mono code.
+- The 45 pages of the 21 October build were rendered and visually inspected in contact sheets, as were the primer's pages on 3 November. Contents and appendix numbering are consistent, short code blocks are kept whole on one page, and extracted text bounding boxes showed no horizontal clipping. Long code samples and tables can continue across pages.
+- Markdown checks inspected the 16 paired code fences of the 21 October text, table structure, Pandoc's parsed headers and links, and supporting-file references. The three complete configuration blocks and the test block match their supplied files. There are eleven numbered chapters; authoring context remains outside the tutorial.
+- All 44 distinct external source URLs of the 21 October text, including the input-precedence fragment URL, returned HTTP 200. Local supporting references exist. HTTP resolution checks complement, rather than replace, the source checks described above.
 - `git diff --check HEAD` passed.
+
+## Reading primer, 3 November 2026
+
+The parts of chapter 1 listed here ran under OpenTofu 1.13.0, from the release archive with its published checksum matched, in temporary directories with local state. The `~> 2.5` constraint installed hashicorp/local 2.9.1 rather than the pinned 2.5.3 used by the labs. No cloud resource or remote backend was involved. Observations:
+
+- The hello configuration needed only `init` and `apply`, printed the output shown and left `terraform.tfstate`.
+- A configuration using `variable` with `validation`, `locals`, `output` with `sensitive`, `data`, `module`, `count`, `for_each`, `depends_on`, `lifecycle`, a heredoc, `required_providers` and `provider` passed `validate`, `fmt -check` and `apply`. `state list` gave the address forms shown, including the module's, and `tofu output` showed `<sensitive>`.
+- `tofu console` returned the expected values for the `for` forms, `join`, `lookup`, `merge`, `coalesce`, `try` and `format`, and `(sensitive value)` for a sensitive variable. A conditional, a filter and a splat ran in the applied configuration.
+- `TF_VAR_region`, `-var`, `terraform.tfvars` and `*.auto.tfvars` each took effect, and `*.auto.tfvars` beat `terraform.tfvars`. An out-of-range `-var` stopped at the validation error. A `.tofu` file replaced the `.tf` file with the same stem.
+- Plans showed each of the tabled symbols, `(sensitive value)`, `(known after apply)`, `-> null`, the `count` reason line and the replacement excerpt, which is shortened. `No changes.` appeared for an unchanged configuration, and `# forces replacement` for a changed `local_file`. `moved` showed as moved, `removed` with `destroy = false` as forgotten, `check` as a warning, `-replace` as a replacement, and a `-target` left invalid by a `moved` block as an error. `-detailed-exitcode` returned 2 with changes pending. `tofu providers` and the lock file's registry address were as described.
+
+**Not run, and following the documentation:** the `Objects have changed outside of OpenTofu` heading (a deleted local file produced only a create), `lifecycle { enabled }` and `provider::` calls in this run, `dynamic`, `%{ }` output layout, `precondition` and `postcondition` in this run (the partial-failure lab exercises a deferred precondition), `provisioner`, `connection`, `ephemeral`, remote module sources, `override.tf`, `*.tf.json`, `optional(...)`, `any`, `-var-file`, `tofu state mv` and `rm`, `import`, the warning from a valid `-target`, `tofu taint`, `null_resource`, `backend`, provider aliases, `prevent_destroy` and `replace_triggered_by`.
+
+The primer's three new documentation URLs returned HTTP 200. Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 10 links each way, all landing on the right text.
 
 ## Limits
 
