@@ -1,8 +1,8 @@
 # RabbitMQ: from sockets to a broker you can trust
 
-The tutorial is [rabbitmq.pdf](rabbitmq.pdf): a 2–3 hour read, with prediction and review exercises and worked answers, covering a reading primer, routing, publisher confirms and consumer acknowledgements, queue types, retries and dead-lettering, topology ownership, clustering and node loss, alarms, upgrades, incident diagnosis, security, and an optional chapter on C++ clients.
+Read [rabbitmq.pdf](rabbitmq.pdf) or [tutorial.md](tutorial.md): a 2–3 hour read, with prediction and review exercises and worked answers, covering a reading primer, routing, publisher confirms and consumer acknowledgements, queue types, retries and dead-lettering, topology ownership, clustering and node loss, alarms, upgrades, incident diagnosis, security, and an optional chapter on C++ clients.
 
-The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is RabbitMQ 4.4.0 with Python 3.12 and pika 1.4.4; examples run against local Docker containers.
+Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is RabbitMQ 4.4.0 with Python 3.12 and pika 1.4.4; examples run against local Docker containers.
 
 ## Build the PDF
 

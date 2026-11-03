@@ -70,6 +70,8 @@ The parts of chapter 1 listed here ran against a disposable `rabbitmq:4.4.0-mana
 
 Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 9 links each way, all landing on the right heading. Chapter 1's pages were rendered and inspected; the bounding-box check under "Document checks" dates from 21 October and covers the rest.
 
+On 3 November 2026, chapter and section numbers, the title, subtitle and date moved into the Markdown so that it reads on GitHub. Comparing the rebuilt PDF's text with the previous build showed only heading punctuation and consequent line breaks. All links were traced again and land on the right headings.
+
 ## Limits
 
 Not executed: the delayed-retry design sketch, throughput and prefetch tuning, TLS, upgrades between versions, true network partitions (nodes were stopped, not isolated), the `blocked_connection_timeout` parameter, AMQP 1.0 clients, and hosts other than Docker on Linux. The C++ code in chapter 9 was not compiled or run; library statements come from their READMEs and release metadata. Documentation URLs on rabbitmq.com are unversioned and were read on the date above. Nothing was run against a non-lab broker.

@@ -1,12 +1,10 @@
----
-title: 'RabbitMQ: from sockets to a broker you can trust'
-subtitle: 'Delivery, failure paths, clustering and diagnosis with RabbitMQ 4.4'
-date: '21 October 2026'
----
+# RabbitMQ: from sockets to a broker you can trust
 
-<span class="unnumbered"></span>
+*Delivery, failure paths, clustering and diagnosis with RabbitMQ 4.4*
 
-# Scope and prerequisites
+21 October 2026
+
+## Scope and prerequisites
 
 This tutorial is about predicting what RabbitMQ will do with a message well
 enough to judge a design, an implementation and a diagnosis. Light use of a
@@ -43,7 +41,7 @@ The running example is a small job pipeline. The `examples/` directory
 contains the complete files; everything essential is reproduced here. A build
 guide is in `README.md`.
 
-# Read RabbitMQ
+## 1. Read RabbitMQ
 
 RabbitMQ has no language of its own. What you read instead is client calls,
 command lines, configuration, definitions files, output and a good deal of
@@ -52,7 +50,7 @@ and know what to look up. Most items get a sentence and a small example, usually
 fragment. Why things behave as they do comes in later chapters, so skim this now
 and return when something looks unfamiliar.
 
-## Hello, world
+### 1.1 Hello, world
 
 Two Python programs using the pika client, with a broker on `localhost`. The
 sender declares a queue and publishes to it:
@@ -107,7 +105,7 @@ params = pika.ConnectionParameters(
     heartbeat=60, blocked_connection_timeout=300)
 ```
 
-## Reading a URL
+### 1.2 Reading a URL
 
 ```text
 amqp://USER:PASSWORD@HOST:5672/VHOST
@@ -117,7 +115,7 @@ amqp://USER:PASSWORD@HOST:5672/VHOST
 default vhost is named `/`, which is `%2F` in a URL. The HTTP API writes it the
 same way: `/api/queues/%2F/hello`.
 
-## Client calls
+### 1.3 Client calls
 
 A process opens one **connection** and several **channels** on it, and nearly every
 call belongs to a channel. pika's `basic_publish` is the protocol's `basic.publish`
@@ -160,7 +158,7 @@ RabbitMQ has no variables, functions or control flow of its own. The nearest thi
 to branches and loops are routing and redelivery, and errors arrive as closed
 channels (below).
 
-## Names and punctuation with meaning
+### 1.4 Names and punctuation with meaning
 
 | Name | Meaning |
 | --- | --- |
@@ -203,7 +201,7 @@ without the `x-`. A policy with `ha-mode` is classic queue mirroring, which Rabb
 4 removed, so it marks a configuration as older than the broker. `x-delivery-count` and `x-death` are headers the broker adds to messages
 that have been redelivered or dead-lettered.
 
-## Look-alikes, and why both exist
+### 1.5 Look-alikes, and why both exist
 
 **Routing key and binding key.** The publisher sets a **routing key** on a message.
 A **binding key** belongs to a binding and is what the routing key is matched
@@ -247,7 +245,7 @@ anything.
 **AMQP 0-9-1 and AMQP 1.0.** They are different protocols despite the name. This
 tutorial's clients use 0-9-1, with exchanges and routing keys as described here.
 
-## Command-line tools
+### 1.6 Command-line tools
 
 Each runs on or near a node and has a different job
 ([CLI tools](https://www.rabbitmq.com/docs/cli)).
@@ -275,7 +273,7 @@ the banner lines, and `-n rabbit@other` addresses another node. All but `rabbitm
 authenticate to the node through a shared file, the **Erlang cookie**;
 `rabbitmqadmin` uses a user's HTTP API credentials.
 
-## Reading output
+### 1.7 Reading output
 
 **Queue counters.** These add up: `messages` is `messages_ready` (waiting) plus
 `messages_unacknowledged` (delivered, not yet acknowledged). **Observed** with a
@@ -323,7 +321,7 @@ or `blocking` when an alarm has stopped publishers (chapter 6).
 **Plugins.** In `rabbitmq-plugins list`, `[E*]` means explicitly enabled and running,
 and `[e*]` means enabled because another plugin needs it.
 
-## Files and configuration
+### 1.8 Files and configuration
 
 | Path | What it is |
 | --- | --- |
@@ -366,7 +364,7 @@ to each other, and 5552 for streams.
 image's `conf.d/10-defaults.conf` turns that restriction off, as the third line above
 does, so a container's defaults are not a production setting.
 
-## Everyday vocabulary
+### 1.9 Everyday vocabulary
 
 | Term | Meaning |
 | --- | --- |
@@ -381,9 +379,9 @@ does, so a container's defaults are not a production setting.
 | Single active consumer | One consumer at a time receives from a queue |
 | Shovel, federation | Plugins that move messages between brokers |
 
-# From sockets to a broker
+## 2. From sockets to a broker
 
-## What moves out of your process
+### 2.1 What moves out of your process
 
 In ZeroMQ, the interesting state lives in your processes. A `PUSH` socket holds
 outgoing messages in a per-peer pipe up to its high-water mark; a `PULL` peer
@@ -411,7 +409,7 @@ The cost is that the broker is now a stateful dependency with its own failure
 modes: it can block publishers, lose quorum, or hold a backlog that grows
 silently. Much of this tutorial is about those modes.
 
-## The vocabulary, from the wire upwards
+### 2.2 The vocabulary, from the wire upwards
 
 - A **connection** is one TCP (or TLS) session to one broker node, with
   authentication, heartbeats and flow control. Connections are relatively
@@ -435,7 +433,7 @@ The publisher never names a queue. That indirection is the key design tool:
 producers state *what* happened (`routing_key="work"`); the broker's topology
 decides *who* receives it.
 
-## Routing: predict where a message goes
+### 2.3 Routing: predict where a message goes
 
 The exchange type defines how routing keys match binding keys.
 [Exchanges](https://www.rabbitmq.com/docs/exchanges).
@@ -477,7 +475,7 @@ Observed: publishing to the lab's `jobs` exchange with the mistyped key `wokr`
 and `mandatory=True` produced pika's `UnroutableError`; without `mandatory`,
 the same publish would have been confirmed and the message silently lost.
 
-## Where the ZeroMQ intuition stops working
+### 2.4 Where the ZeroMQ intuition stops working
 
 - *"If the socket accepted it, it's on its way."* A RabbitMQ publish returning
   from the client library means only that bytes were written to a socket.
@@ -494,7 +492,7 @@ the same publish would have been confirmed and the message silently lost.
 
 <span id="exercise-1"></span>
 
-## Exercise 1: predict the route
+### 2.5 Exercise 1: predict the route
 
 A topic exchange `events` has three bindings: queue `audit` with `#`, queue
 `billing` with `invoice.*`, queue `eu` with `*.eu.#`. Predict which queues
@@ -516,9 +514,9 @@ publish can still result in no queue holding the message."
   `mandatory` with no code that handles the return; or treating the default
   exchange as an ordinary routing choice.
 
-# Hand-offs you can trust
+## 3. Hand-offs you can trust
 
-## Two hand-offs, two acknowledgements
+### 3.1 Two hand-offs, two acknowledgements
 
 Follow responsibility for a single job:
 
@@ -536,7 +534,7 @@ Publisher confirms close the gap between 2 and 3; consumer acknowledgements
 close the gap between 4 and 5. Without both, "at least once" is wishful
 thinking. [Confirms and acknowledgements](https://www.rabbitmq.com/docs/confirms).
 
-## Publisher confirms
+### 3.2 Publisher confirms
 
 A channel in confirm mode receives a `basic.ack` for every published message,
 identified by a sequence number. The documented meaning of that ack depends on
@@ -573,7 +571,7 @@ A message is also only as durable as its properties and queue. Set
 `delivery_mode=2` (persistent) for messages that must survive a restart. Quorum
 queues and streams are always durable.
 
-## Consumer acknowledgements
+### 3.3 Consumer acknowledgements
 
 A consumer chooses an acknowledgement mode when it subscribes:
 
@@ -600,7 +598,7 @@ another channel is a protocol error that closes the channel.
 crashed while handling job 3. Jobs 4 and 5 had already been sent to it, but not
 touched. All three came back with `redelivered=True`.
 
-## Prefetch: the unacknowledged window
+### 3.4 Prefetch: the unacknowledged window
 
 `basic_qos(prefetch_count=N)` limits how many unacknowledged messages the
 broker will send to a consumer at once. In RabbitMQ, the classic
@@ -622,7 +620,7 @@ window that covers the round-trip time at the consumer's processing rate, then
 measured. For slow, uneven jobs, small prefetch values distribute work more
 fairly.
 
-## At least once means idempotent consumers
+### 3.5 At least once means idempotent consumers
 
 Put the hand-offs together. The producer may publish twice (an unconfirmed
 message retried after reconnection). The broker may deliver twice (a consumer
@@ -644,7 +642,7 @@ the key belongs in the database the job modifies. Where the effect is
 external, such as sending email or calling a payment API, you need that
 system's own idempotency mechanism, or you accept and bound duplicates.
 
-## Long work, heartbeats and the consumer timeout
+### 3.6 Long work, heartbeats and the consumer timeout
 
 Two timers watch slow consumers.
 
@@ -679,7 +677,7 @@ receiving deliveries unless it handles the cancel.
 
 <span id="exercise-2"></span>
 
-## Exercise 2: trace responsibility
+### 3.7 Exercise 2: trace responsibility
 
 A worker with manual acks and prefetch 5 receives jobs 1–5. It finishes job 1
 and acks it, finishes job 2 and commits its database transaction, then the
@@ -702,7 +700,7 @@ say for each whether the job is lost, duplicated, or neither."
 
 <span id="exercise-3"></span>
 
-## Exercise 3: review a publisher
+### 3.8 Exercise 3: review a publisher
 
 An agent proposes this to "make publishing reliable":
 
@@ -722,9 +720,9 @@ before approving it?
 
 [Worked answer](#answer-3)
 
-# The job pipeline
+## 4. The job pipeline
 
-## Shape and ownership
+### 4.1 Shape and ownership
 
 The example is the smallest system that exercises both hand-offs, retries and
 dead-lettering:
@@ -755,7 +753,7 @@ producer
                           [jobs.dlx] --> (jobs.dead)
 ```
 
-## Topology as data
+### 4.2 Topology as data
 
 The relevant part of `examples/broker/definitions.json` (users and
 permissions are shown in chapter 8):
@@ -807,7 +805,7 @@ definitions.local.path = /etc/rabbitmq/definitions.json
 
 [Definitions](https://www.rabbitmq.com/docs/definitions).
 
-## The producer
+### 4.3 The producer
 
 `examples/producer.py`, complete:
 
@@ -868,7 +866,7 @@ What the producer deliberately does not do: retry after a connection failure,
 or wait without a bound. Both appear in the exercises and in chapter 6, where
 a publish to a broker without quorum waits forever.
 
-## The worker
+### 4.4 The worker
 
 The core of `examples/worker.py`; argument parsing is omitted. Options such as
 `--poison`, `--flaky` and `--crash-before-ack` exist only to make delivery
@@ -922,7 +920,7 @@ The jobs here take 0.1 s, so the single-threaded `BlockingConnection` loop is
 acceptable. A job that can approach the heartbeat timeout needs the
 worker-thread pattern from chapter 3.
 
-## Running it and reading the result
+### 4.5 Running it and reading the result
 
 Runnable on a machine with Docker and Python 3.12, from `rabbitmq/examples/`:
 
@@ -975,7 +973,7 @@ few seconds later, five. A consumer count also lingered for a few seconds
 after a worker exited. `lab.sh` therefore sleeps before sampling. An agent
 diagnosing "messages vanished" from a single sample can be misled by this.
 
-## What the run proves, and what it does not
+### 4.6 What the run proves, and what it does not
 
 It shows the delivery semantics on one node with tiny jobs. It does not show
 throughput, the effect of large prefetch on memory, behaviour across node
@@ -986,7 +984,7 @@ effect would print exactly the same lines.
 
 <span id="exercise-4"></span>
 
-## Exercise 4: predict a crash
+### 4.7 Exercise 4: predict a crash
 
 Start with an empty queue and ledger. Publish jobs 1–10. Run
 `worker.py --prefetch 1 --crash-before-ack 4`, then a plain `worker.py`.
@@ -995,9 +993,9 @@ Predict the second worker's output lines, including `redelivered` and
 
 [Worked answer](#answer-4)
 
-# Choosing queues and failure paths
+## 5. Choosing queues and failure paths
 
-## Three queue types
+### 5.1 Three queue types
 
 RabbitMQ 4.x offers three kinds of queue, chosen per queue at declaration by
 `x-queue-type`, and immutable afterwards.
@@ -1042,7 +1040,7 @@ disappears. Messages in a queue are FIFO per publishing channel, but requeues
 and priorities reorder them; if strict order matters, single active consumer
 (or a stream) is the tool, and it caps throughput at one consumer.
 
-## Poison messages and the delivery limit
+### 5.2 Poison messages and the delivery limit
 
 A **poison message** is one that fails every time, for example because a
 malformed field makes the handler throw. With requeue-on-failure, it returns
@@ -1095,7 +1093,7 @@ dead-lettered with reason `delivery_limit`. With `nack`, job 30 was delivered
 unbounded run, one message was delivered more than 20,000 times in under two
 minutes. The delivery limit offers no protection against that loop.
 
-## Retry needs a delay, which RabbitMQ does not add
+### 5.3 Retry needs a delay, which RabbitMQ does not add
 
 Even with `reject` and a delivery limit, immediate requeue retries at once. A
 transient failure such as a downstream service being briefly unavailable
@@ -1118,7 +1116,7 @@ complexity:
 This is a decision to retain. Ask which failures are transient, how long they
 last, and what happens to a job that exhausts its attempts.
 
-## Dead-lettering and what lands in `jobs.dead`
+### 5.4 Dead-lettering and what lands in `jobs.dead`
 
 Messages are dead-lettered when they are rejected or nacked with
 `requeue=False`, when a per-message TTL expires, when a length limit drops
@@ -1151,7 +1149,7 @@ and replay, or discard. Replaying dead letters into the work queue without
 fixing the cause recreates the failure; replaying them without idempotent
 consumers can duplicate effects.
 
-## Who owns topology
+### 5.5 Who owns topology
 
 There are three common ways to create exchanges, queues and bindings:
 
@@ -1191,7 +1189,7 @@ in application code has made a later operational change into a migration.
 [Policies](https://www.rabbitmq.com/docs/policies),
 [dead letter exchanges](https://www.rabbitmq.com/docs/dlx).
 
-## Growing the example
+### 5.6 Growing the example
 
 Pressures that justify more structure:
 
@@ -1211,7 +1209,7 @@ Pressures that justify more structure:
 
 <span id="exercise-5"></span>
 
-## Exercise 5: review a generated consumer
+### 5.7 Exercise 5: review a generated consumer
 
 An agent writes this worker for a new service on the 4.4 cluster:
 
@@ -1249,9 +1247,9 @@ step by step, on RabbitMQ 4.4, and how would we see it in metrics?"
   queue `x-max-priority` or mirroring setting as current; requeue without any
   limit; a dead-letter queue nobody monitors.
 
-# Running a cluster
+## 6. Running a cluster
 
-## What is replicated, and what needs a majority
+### 6.1 What is replicated, and what needs a majority
 
 A RabbitMQ cluster is a set of Erlang nodes sharing one **metadata store**
 (users, vhosts, exchanges, bindings, queue definitions, policies) and hosting
@@ -1282,7 +1280,7 @@ Nodes authenticate each other with a shared secret, the **Erlang cookie**. Any
 holder of the cookie who can reach the inter-node port can run arbitrary code
 on every node, so it is a root-equivalent credential (chapter 8).
 
-## The lab cluster, and the mistake it exposes
+### 6.2 The lab cluster, and the mistake it exposes
 
 `examples/cluster/compose.yaml` runs three nodes, `rabbit1`–`rabbit3`, which
 discover each other from a fixed list in `examples/cluster/rabbitmq.conf`:
@@ -1336,7 +1334,7 @@ reconciliation with a target group size, or both. The general lesson: check
 replication by asking the broker for membership, never by reading the
 declaration.
 
-## Losing nodes
+### 6.3 Losing nodes
 
 The rest of `cluster/lab.sh` stops nodes and publishes through `rabbit1`
 (loopback port 5673). Observed:
@@ -1389,7 +1387,7 @@ Consequences for design:
 - Health checks that only test "is the port open" will report the minority
   node as healthy while it cannot accept a single message.
 
-## Partitions
+### 6.4 Partitions
 
 A network partition splits the cluster into groups that cannot see each
 other. Before 4.3, operators chose a partition-handling strategy such as
@@ -1402,7 +1400,7 @@ twice around a partition. [Partitions](https://www.rabbitmq.com/docs/partitions)
 An agent recommending `cluster_partition_handling = pause_minority` for a
 4.4 cluster is configuring nothing.
 
-## Resource alarms and flow control
+### 6.5 Resource alarms and flow control
 
 RabbitMQ protects itself when memory or disk runs short. The defaults are a
 memory high watermark of 0.6 of available memory and a free disk limit of
@@ -1436,7 +1434,7 @@ blocking and unblocking their connections many times a second. A connection
 in state `flow` is being throttled; occasional flow is normal, persistent flow
 means the broker cannot keep up. [Flow control](https://www.rabbitmq.com/docs/flow-control).
 
-## Upgrades
+### 6.6 Upgrades
 
 An in-place upgrade must follow a path the upgrade guide documents. Some
 paths skip a series (4.0.x to 4.2.x, for example), so do not assume either
@@ -1472,7 +1470,7 @@ jumping several series. For a .0 release such as 4.4.0, a cautious
 production plan waits for the first patch or two, or rehearses on a copy of
 production definitions.
 
-## Observability
+### 6.7 Observability
 
 The `rabbitmq_prometheus` plugin serves metrics on port 15692. By default
 `/metrics` returns aggregated metrics; per-queue metrics are available from
@@ -1491,7 +1489,7 @@ that map onto this tutorial's failure modes:
 
 <span id="exercise-6"></span>
 
-## Exercise 6: plan a node restart
+### 6.8 Exercise 6: plan a node restart
 
 You inherit a three-node 4.4 cluster. `rabbitmq-queues quorum_status` shows
 that `orders` has members on `n1` and `n2` only; the other queues have three
@@ -1514,9 +1512,9 @@ queue and the metadata store keep a majority."
   as evidence; recommending partition-handling settings; restarting nodes in
   parallel "to save time".
 
-# Evidence before edits
+## 7. Evidence before edits
 
-## Directing an investigation
+### 7.1 Directing an investigation
 
 When an agent is handed logs and access and asked to find the cause of an
 incident, it will produce a plausible story quickly. The reviewer's job is to
@@ -1531,7 +1529,7 @@ hypotheses. Before accepting a fix, decide what metric or output will prove
 it worked. Purging a queue, deleting a member, or restarting a node destroys
 evidence and sometimes data; such actions need an explicit human decision.
 
-## Symptoms, causes and distinguishing evidence
+### 7.2 Symptoms, causes and distinguishing evidence
 
 | Symptom | Plausible causes | Evidence that distinguishes them |
 | --- | --- | --- |
@@ -1545,7 +1543,7 @@ evidence and sometimes data; such actions need an explicit human decision.
 | Client error 403 | Permissions do not match the operation | The reply text names the operation and resource |
 | Connection closed with 541 | A denied deprecated feature, such as a transient non-exclusive queue | The reply text names the feature |
 
-## Probes that mislead
+### 7.3 Probes that mislead
 
 Three observed traps in 4.4.0:
 
@@ -1564,7 +1562,7 @@ Three observed traps in 4.4.0:
 3. **`check_running` and `cluster_status` say nothing about quorum.** In the
    cluster lab, all three were green while `jobs.work` had one member.
 
-## A worked investigation
+### 7.4 A worked investigation
 
 *Report:* after a deploy of a new worker for the quorum queue `thumbnails`,
 which has a dead-letter exchange and the default delivery limit by policy, CPU
@@ -1598,7 +1596,7 @@ A sound one:
 Note that the recovery is a code change with a measurable acceptance
 criterion, and the poisoned message is preserved for inspection, not purged.
 
-## Recovery after partial failure
+### 7.5 Recovery after partial failure
 
 - **Dead letters** are data. Inspect a sample, fix the cause, then replay
   deliberately. The lab's step 7 peeks through the management API's "get
@@ -1622,7 +1620,7 @@ criterion, and the poisoned message is preserved for inspection, not purged.
 
 <span id="exercise-7"></span>
 
-## Exercise 7: diagnose from output
+### 7.6 Exercise 7: diagnose from output
 
 A worker service reports "stopped processing at 14:00 without errors". The
 process is alive. At 14:20 you capture:
@@ -1639,9 +1637,9 @@ that would refute it, and two design options.
 
 [Worked answer](#answer-7)
 
-# Keeping it safe and maintainable
+## 8. Keeping it safe and maintainable
 
-## Users, vhosts and permissions
+### 8.1 Users, vhosts and permissions
 
 RabbitMQ authorises each operation against three regular expressions per user
 per vhost: **configure** (create or delete exchanges and queues), **write**
@@ -1668,7 +1666,7 @@ definitions, and by default it can connect only from loopback. Do not lift
 that restriction (`loopback_users = none`); create real users. The lab never
 creates `guest`, because it imports definitions at boot.
 
-## Secrets
+### 8.2 Secrets
 
 The lab deliberately keeps lab-only passwords in `common.py` and password
 hashes in `definitions.json`. In a real deployment:
@@ -1688,7 +1686,7 @@ hashes in `definitions.json`. In a real deployment:
   [Clustering](https://www.rabbitmq.com/docs/clustering),
   [networking](https://www.rabbitmq.com/docs/networking).
 
-## TLS and exposure
+### 8.3 TLS and exposure
 
 TLS is not enabled by default. The conventional ports are 5671 for AMQP over
 TLS and 15671 for the management UI over HTTPS. Anything crossing a network
@@ -1709,7 +1707,7 @@ start. The lab compose files run the container as `999:999`, so probes and the
 server share an identity. Watch for this pattern in agent-written
 healthchecks.
 
-## Reading an inherited broker
+### 8.4 Reading an inherited broker
 
 When you inherit a RabbitMQ deployment, establish what exists before
 changing it:
@@ -1737,7 +1735,7 @@ that re-importing the repository's definitions undoes drift.[^import]
 
 <span id="exercise-8"></span>
 
-## Exercise 8: review a definitions change
+### 8.5 Exercise 8: review a definitions change
 
 An agent proposes, for a new reporting service:
 
@@ -1751,7 +1749,7 @@ pipeline, and what would you approve instead?
 
 [Worked answer](#answer-8)
 
-# Integrating C++ clients (optional)
+## 9. Integrating C++ clients (optional)
 
 Read this if C++ services will publish or consume alongside Python ones. It
 needs chapters 3 and 5. None of the C or C++ clients is officially supported
@@ -1760,7 +1758,7 @@ by the RabbitMQ team; they are community libraries listed on the
 Examples in this chapter are **untested excerpts** that show the shape of the
 code, not runnable programs.
 
-## The message contract comes first
+### 9.1 The message contract comes first
 
 RabbitMQ does not inspect bodies. Two languages can only interoperate through a
 contract you write down and both sides test:
@@ -1781,7 +1779,7 @@ The broker semantics from chapters 3 and 5 are client-independent:
 confirms, manual acks after the effect commits, prefetch, the reject-versus-nack
 delivery-count rule, and idempotent processing.
 
-## Library choices
+### 9.2 Library choices
 
 - **rabbitmq-c** (C).[^releases] Its README says a socket, connection state
   or channel cannot be shared between threads: use one connection per thread
@@ -1811,7 +1809,7 @@ supported AMQP 1.0 clients do not include C or C++. A generic AMQP 1.0
 library such as Qpid Proton C++ would work in principle; that was not
 verified for this tutorial.
 
-## The shape of a correct C++ consumer
+### 9.3 The shape of a correct C++ consumer
 
 Untested AMQP-CPP excerpt, assuming an event loop and a connected `channel`:
 
@@ -1845,7 +1843,7 @@ The points to review are the same as in pika, made sharper by threads:
 
 <span id="exercise-9"></span>
 
-## Exercise 9: review a C++ producer
+### 9.4 Exercise 9: review a C++ producer
 
 A C++ service publishes with AMQP-CPP using a plain channel (not
 `AMQP::Reliable`), sets `messageID` to a fresh UUID on each send attempt, and
@@ -1854,15 +1852,11 @@ reads `job` from the body. List the contract and reliability problems.
 
 [Worked answer](#answer-9)
 
-<span class="unnumbered"></span>
-
-# Worked answers
+## Worked answers
 
 <span id="answer-1"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 1
+### Exercise 1
 
 [Back to exercise 1](#exercise-1)
 
@@ -1878,9 +1872,7 @@ binding matches at all.
 
 <span id="answer-2"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 2
+### Exercise 2
 
 [Back to exercise 2](#exercise-2)
 
@@ -1893,9 +1885,7 @@ effect. It must not use `redelivered` to make that decision.
 
 <span id="answer-3"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 3
+### Exercise 3
 
 [Back to exercise 3](#exercise-3)
 
@@ -1918,9 +1908,7 @@ and shows every job present once after consumer deduplication.
 
 <span id="answer-4"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 4
+### Exercise 4
 
 [Back to exercise 4](#exercise-4)
 
@@ -1934,9 +1922,7 @@ count=1 recorded`. The output differs, the outcome does not: this is why
 
 <span id="answer-5"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 5
+### Exercise 5
 
 [Back to exercise 5](#exercise-5)
 
@@ -1964,9 +1950,7 @@ and on a quorum queue the nack rule would bypass it.
 
 <span id="answer-6"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 6
+### Exercise 6
 
 [Back to exercise 6](#exercise-6)
 
@@ -1981,9 +1965,7 @@ node was down or before the cluster formed.
 
 <span id="answer-7"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 7
+### Exercise 7
 
 [Back to exercise 7](#exercise-7)
 
@@ -2003,9 +1985,7 @@ the job is durably accepted by another system that tracks progress.
 
 <span id="answer-8"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 8
+### Exercise 8
 
 [Back to exercise 8](#exercise-8)
 
@@ -2025,9 +2005,7 @@ priority.
 
 <span id="answer-9"></span>
 
-<span class="unnumbered"></span>
-
-## Exercise 9
+### Exercise 9
 
 [Back to exercise 9](#exercise-9)
 
@@ -2039,9 +2017,7 @@ specified if it were. Also check `content_type`, persistence, `mandatory` or
 an alternate exchange, and a cross-language contract test that runs one
 producer against the other consumer.
 
-<span class="unnumbered"></span>
-
-# Field reference
+## Field reference
 
 | Need | Command or setting (4.4) |
 | --- | --- |
@@ -2065,13 +2041,9 @@ producer against the other consumer.
 [rabbitmq-diagnostics(8)](https://www.rabbitmq.com/docs/man/rabbitmq-diagnostics.8),
 [rabbitmqctl(8)](https://www.rabbitmq.com/docs/man/rabbitmqctl.8).
 
-<span class="unnumbered"></span>
+## Example files, sources and verification
 
-# Example files, sources and verification
-
-<span class="unnumbered"></span>
-
-## Files
+### Files
 
 All under `rabbitmq/examples/`:
 
@@ -2088,9 +2060,7 @@ The scripts change only the two Compose projects `rabbitmq-lab` and
 `rabbitmq-cluster-lab` and their volumes, plus `ledger.sqlite` and `nack.log`
 in `examples/`. Never point them at a real broker.
 
-<span class="unnumbered"></span>
-
-## Versions and sources
+### Versions and sources
 
 Target and observed: RabbitMQ 4.4.0 (image `rabbitmq:4.4.0-management`, Erlang
 29.1.2), pika 1.4.4, Python 3.12.3, Docker 27.2.0. Research date: 21 October 2026.
@@ -2101,9 +2071,7 @@ repositories. Chapter 1 was researched on 3 November 2026, and parts of it run o
 the same broker image and pika version with Python 3.14; `verification.md` lists
 which parts.
 
-<span class="unnumbered"></span>
-
-## What was and was not verified
+### What was and was not verified
 
 `verification.md` records the exact runs. Every lab result quoted here was
 observed on 4.4.0 containers; `check_local_alarms` was also compared on 4.3.6
