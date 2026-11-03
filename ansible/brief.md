@@ -14,7 +14,7 @@
 
 **Target.** Ansible Core 2.21.5; controller Python 3.12; concrete managed-host example Ubuntu 24.04 LTS with systemd, Python 3 and SSH. The distribution is an explicit teaching assumption, not a claim about Jellybooks. Other distributions require package, service, path and interpreter checks.
 
-**Research.** 20 October 2026. Official Ansible documentation and module documentation are primary sources. The mutable `latest` documentation URLs are dated accordingly.
+**Research.** 20 October 2026; chapter 1, 3 November 2026. Official Ansible documentation and module documentation are primary sources. The mutable `latest` documentation URLs are dated accordingly.
 
 **Scope.** Host configuration, inventory, variables, handlers, roles, verification, staged changes, partial failure, secrets, inherited repositories and infrastructure ownership. Terraform language, Docker fundamentals, Kubernetes implementation, Windows, network devices and exhaustive plugin coverage are outside scope.
 

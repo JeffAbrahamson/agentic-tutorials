@@ -14,8 +14,8 @@ The examples scale from one host to a fleet of tens, including services that
 run outside Docker, with Terraform and containers owning adjacent layers.
 
 Allow two to three hours, including the short prediction and review exercises.
-Read chapters 1–7 in order. Chapter 8 helps when adopting an inherited repository;
-chapter 9 is an optional bridge to Terraform and containers. Worked answers are
+Read chapters 1–8 in order. Chapter 9 helps when adopting an inherited repository;
+chapter 10 is an optional bridge to Terraform and containers. Worked answers are
 collected near the end. Commands make behaviour precise. Pause at each
 exercise before reading its answer.
 
@@ -35,6 +35,442 @@ requiring a public listener or firewall change.
 
 The `examples/` directory contains the complete files. A build guide and the
 verification record are in `README.md` and `verification.md`.
+
+# Read Ansible code {#reading}
+
+This chapter is a phrasebook: enough to recognise each part of an Ansible
+repository and know what to look up. Most items get a sentence and a small
+example; apart from `hello.yml`, these are fragments. Why things behave as they do comes in later chapters, so skim this now
+and return when a construct looks unfamiliar.
+
+## Hello, world
+
+A **playbook** is a YAML file. Saved as `hello.yml`, this one runs a single task
+on the machine you run it from:
+
+```yaml
+---
+- name: Say hello
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Print a greeting
+      ansible.builtin.debug:
+        msg: Hello, world
+```
+
+```sh
+ansible-playbook -i localhost, hello.yml
+```
+
+`-i` names the **inventory**, the list of machines. The trailing comma makes
+`localhost,` a literal host list rather than a filename. The output, with its
+rules of asterisks shortened and the recap's spacing closed up:
+
+```text
+PLAY [Say hello] ****
+
+TASK [Print a greeting] ****
+ok: [localhost] => {
+    "msg": "Hello, world"
+}
+
+PLAY RECAP ****
+localhost : ok=1 changed=0 unreachable=0 failed=0 skipped=0 rescued=0 ignored=0
+```
+
+`connection: local` runs tasks here rather than over SSH, and `gather_facts: false`
+skips collecting data about the target. The recap counts task outcomes per host;
+chapter 2 defines them.
+
+## YAML
+
+Playbooks, variable files and most inventories are YAML: data, not a programming
+language.
+Ansible supplies the meaning.
+[YAML syntax](https://docs.ansible.com/projects/ansible/latest/reference_appendices/YAMLSyntax.html).
+
+**Lists and maps.** `-` starts a list item, `key: value` is a map entry, and
+indentation (spaces only) gives nesting. The one-line flow forms mean the same.
+
+```yaml
+ports:
+  - 80
+  - 443
+same_ports: [80, 443]
+owner: {name: root, uid: 0}
+```
+
+**Types and quotes.** Strings rarely need quotes, but an unquoted value is typed
+by its shape. A value starting with `{{` must be quoted, or YAML reads the `{` as
+the start of a map and parsing fails.
+
+```yaml
+mode: 644              # decimal, so file mode 1204
+mode: '0644'           # a string: the safe spelling
+enabled: yes           # boolean; prefer true
+label: "yes"           # the string yes
+greeting: "{{ who }}"  # quotes needed for {{
+```
+
+**Block strings.** `|` keeps newlines and `>` folds them into spaces. A trailing
+`-` removes the final newline, so this value is `one two`:
+
+```yaml
+text: >-
+  one
+  two
+```
+
+## Plays and tasks
+
+A playbook is a list of **plays**. A play selects hosts and lists **tasks**:
+
+```yaml
+---
+- name: Configure web hosts
+  hosts: web
+  become: true
+  vars:
+    web_port: 8080
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+      tags: [packages]
+```
+
+**Reading a task.** One key names the **module** to run, and what is indented
+under it are that module's arguments. Its sibling keys (`name`, `when`, `tags`,
+`register`, `notify`, `loop`, `become`) are **keywords** that control how the task
+runs. So `name` appears twice within that task: its label, and `apt`'s package
+argument.
+
+**Become and facts.** `become: true` runs tasks under another account, usually root
+through sudo. `ansible_facts` holds **facts**, data about the target collected when
+a play starts.
+
+**Module names.** `ansible.builtin.apt` is `namespace.collection.module`. Older
+code often writes just `apt`, which usually resolves to the same module.
+`ansible-doc ansible.builtin.apt` prints its reference offline.
+
+**The `key=value` form.** Inherited code may put arguments on one line, which
+means the same as nesting them:
+
+```yaml
+- ansible.builtin.file: path=/tmp/flag state=touch
+```
+
+**Others you will meet.** `vars_files` and `include_vars` load variables from files;
+`delegate_to` runs a task on another machine; `run_once` runs it for one host of a
+batch; `no_log` hides its output. In `hosts:`, `web:&staging` means the intersection
+and `web:!db` an exclusion.
+
+## Variables and expressions
+
+**Setting a variable.** There is no assignment statement; values are declared in
+some place. Common places are `vars:` on a play, block or task;
+`group_vars/web.yml` and `host_vars/web01.yml`; a role's `defaults/main.yml`; and
+`-e` on the command line. Two task forms set values during a run: `register`
+saves a task's result, and `set_fact` computes a value. Each applies per host.
+Chapter 5 explains which definition wins.
+
+```yaml
+- name: Read the kernel release
+  ansible.builtin.command: uname -r
+  register: kernel
+  changed_when: false
+
+- name: Keep part of the result
+  ansible.builtin.set_fact:
+    kernel_release: "{{ kernel.stdout }}"
+```
+
+Names use letters, digits and underscores, starting with a letter or underscore.
+Avoid keywords such as `name` and `hosts`: Ansible warns about them as reserved.
+
+**Using a variable.** Values are templated by **Jinja**, a separate expression
+language embedded in the strings. Template files use its other two delimiters:
+`{% ... %}` for statements and `{# ... #}` for comments.
+
+```yaml
+msg: "Port {{ web_port }} on {{ inventory_hostname }}"
+```
+
+```text
+{# nginx.conf.j2: one line per port #}
+{% for port in web_ports %}
+listen {{ port }};
+{% endfor %}
+```
+
+**Expressions.** Most resemble Python. `|` passes a value through a **filter**, a
+function, and `is` applies a **test**, a predicate. `~` joins values as strings.
+
+```text
+owner.name, owner['name']     the same lookup
+web_ports[0]                  indexing
+web_ports | length            a filter
+who | default('nobody')       a filter with an argument
+'v' ~ release                 string join
+who is defined                a test
+'a' if ok else 'b'            inline conditional
+```
+
+**No comprehensions.** Jinja has none; chains of filters do that work. The
+trailing `list` is customary.
+
+```yaml
+# users: [{name: ada, admin: true}, {name: bob, admin: false}]
+# Python: [u["name"] for u in users if u["admin"]]
+admins: "{{ users | selectattr('admin') | map(attribute='name') | list }}"
+
+# limits: {cpu: 2, swap: 0, mem: 4}
+# Python: {k: v for k, v in limits.items() if v > 0}
+used: "{{ limits | dict2items | selectattr('value', 'gt', 0) | items2dict }}"
+```
+
+**Conditions.** `when` takes a bare expression, without `{{ }}`. A list means all
+must hold. Core 2.21 warns about the braced form and plans its removal in 2.23.
+
+```yaml
+when:
+  - ansible_facts['os_family'] == 'Debian'
+  - web_port | int > 1024
+```
+
+**Optional arguments.** The special value `omit` removes an argument from the
+module call, so the module's own default applies.
+[Filters](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_filters.html).
+
+```yaml
+mode: "{{ web_mode | default(omit) }}"
+```
+
+**Lookups.** `lookup` fetches data on the controller, not the target:
+
+```yaml
+motd: "{{ lookup('ansible.builtin.file', 'motd.txt') }}"
+```
+
+## Loops, retries and errors
+
+**Loops.** `loop` runs a task once per element, with the current one in `item`.
+`loop_control: {loop_var: user}` renames it, which matters when loops nest.
+
+```yaml
+- name: Create accounts
+  ansible.builtin.user:
+    name: "{{ item }}"
+  loop: [ada, bob]
+```
+
+**Retries.** `until` reruns a task until a condition holds, with `retries` and
+`delay` as limits. Chapter 4 has a complete example.
+
+**Errors.** `block`, `rescue` and `always` are `try`, `except` and `finally`, per
+host. `ansible_failed_task` is available inside `rescue`. The analogy stops at an
+unreachable host, which triggers neither `rescue` nor `always`.
+
+```yaml
+- block:
+    - name: Run the migration
+      ansible.builtin.command: /usr/local/bin/migrate
+  rescue:
+    - name: Report it
+      ansible.builtin.debug:
+        msg: "Failed: {{ ansible_failed_task.name }}"
+  always:
+    - name: Remove the lock
+      ansible.builtin.file:
+        path: /tmp/migrate.lock
+        state: absent
+```
+
+**Redefining the outcome.** `failed_when` and `changed_when` replace a task's own
+judgement with an expression, and `ignore_errors: true` continues after a failure.
+Each deserves scrutiny in review.
+
+## The nearest things to functions
+
+Ansible has no function definition. Three constructs share the job, and none
+returns a value or has a private scope in the way a function does: results reach
+the caller as variables set on the host.
+
+**A task file with variables.** `vars` act as parameters:
+
+```yaml
+- ansible.builtin.include_tasks: create_site.yml
+  vars:
+    site_name: shop
+```
+
+**A role.** A directory of tasks, handlers, templates and defaults with a
+conventional layout, called from a play's `roles:` list or a task:
+
+```yaml
+- ansible.builtin.include_role:
+    name: status_service
+  vars:
+    status_port: 8081
+```
+
+**A handler.** A named task that runs later, and only if something notified it.
+It looks like a call and is not one; chapter 4 explains the difference.
+
+```yaml
+tasks:
+  - name: Install the configuration
+    ansible.builtin.template:
+      src: nginx.conf.j2
+      dest: /etc/nginx/nginx.conf
+    notify: Reload nginx
+handlers:
+  - name: Reload nginx
+    ansible.builtin.systemd_service:
+      name: nginx
+      state: reloaded
+```
+
+When an expression becomes unreadable, real code can move to Python: a file in
+`filter_plugins/` beside the playbook adds a filter.
+
+## Names with special meaning
+
+**`ansible_` connection variables.** You set these to control how Ansible connects:
+`ansible_host`, `ansible_user`, `ansible_python_interpreter`.
+
+**Magic variables.** Ansible sets these for you: `inventory_hostname`,
+`groups['web']`, `hostvars['web01']`, `ansible_play_hosts`, `ansible_check_mode`,
+`playbook_dir`, `role_path`. [Special variables](https://docs.ansible.com/projects/ansible/latest/reference_appendices/special_variables.html).
+
+**Underscores in variable names.** Role variables mostly end up sharing one
+namespace, so they carry a prefix. `ansible-lint` expects the role's full name, as
+in `nginx_port` for a role called `nginx`; this tutorial's shorter `status_port`, in
+role `status_service`, would not pass that rule. A leading double underscore, as in
+`__nginx_tmp`, marks a value callers should not set. Both are conventions: unlike Python's `__x`, there is no
+name mangling, and nothing is enforced at run time.
+[var-naming rule](https://docs.ansible.com/projects/lint/rules/var-naming/),
+[role good practices](https://github.com/redhat-cop/automation-good-practices/blob/main/roles/README.adoc).
+
+**`main.yml`.** Within most role directories this filename is loaded automatically.
+
+**YAML tags.** `!vault` marks an encrypted value, and `!unsafe` marks a string
+Ansible must not template:
+
+```yaml
+db_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  39633365366237616563323530666533...
+shown_literally: !unsafe "{{ not a template }}"
+```
+
+## Look-alikes, and why both exist
+
+**`copy` and `template`.** `copy` installs a file's bytes unchanged, usually from
+a role's `files/`. `template` first renders Jinja on the controller, usually from
+`templates/`. Copying a template would install its braces literally.
+
+**`command` and `shell`.** `command` runs a program directly, so
+`echo a | tr a b` prints that text, pipe included. `shell` hands the line to a
+shell, which gains pipes and redirection and also gains quoting and injection risks.
+
+**`import_*` and `include_*`.** Imports are expanded when the playbook is parsed,
+so `--list-tasks` shows their contents. Includes are evaluated when execution
+reaches them, so they can loop or choose a filename from a value known only at run time, but `--list-tasks`
+shows only the include. A loop on an import is an error.
+[Reuse](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse.html).
+
+**Role `defaults/` and `vars/`.** Both define role variables. `defaults/` has
+almost the lowest precedence, so it holds inputs meant to be overridden. `vars/`
+is high precedence, so it holds values callers should rarely change.
+
+**`vars` and `set_fact`.** A `vars` entry holding an expression is evaluated each
+time it is used. `set_fact` evaluates once and stores the result for that host, so
+a timestamp in `vars` can differ between tasks and one in `set_fact` does not.
+
+**`ansible_facts['distribution']` and `ansible_distribution`.** The same fact.
+The second is the older top-level form. Core 2.21 warns that its default
+injection is deprecated, with removal planned for 2.24.
+
+**`pre_tasks`, `roles`, `tasks` and `post_tasks`.** Together these fix a play's
+order, whatever their order in the file, so that setup can precede roles and
+checks can follow them. Handlers run after `pre_tasks`, after `roles` and `tasks`
+together, and after `post_tasks`.
+[Execution order](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse_roles.html).
+
+**`loop` and `until`.** `loop` repeats for different inputs and `until` repeats
+the same action until it succeeds. `with_items` and other `with_<lookup>` forms are
+the older loop syntax, still valid and not deprecated.
+[Loops](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_loops.html).
+
+**A handler and `when: result is changed`.** Both act only after a change. A handler
+is deferred and runs once however many tasks notified it; the condition runs
+immediately, in its place in the task list.
+
+**`inventory_hostname` and `ansible_host`.** The first is the name in inventory
+that patterns select, and the second is the address used to connect.
+
+**`forks` and `serial`.** `forks` limits concurrent workers, whereas `serial` sets
+how many hosts go through the play at a time. Only `serial` limits how much of a
+fleet can be changed at once; chapter 7 covers it.
+
+## Files and commands
+
+A typical repository, though much of this is optional:
+
+```text
+ansible.cfg              # controller settings
+requirements.yml         # external collections and roles
+site.yml                 # the top-level playbook, by convention
+inventories/
+  staging/
+    hosts.yml            # hosts and groups
+    group_vars/web.yml   # variables for group web
+    host_vars/web01.yml  # variables for one host
+roles/
+  status_service/
+    tasks/main.yml       # the entry point
+    handlers/main.yml    # notified tasks
+    defaults/main.yml    # inputs, easy to override
+    vars/main.yml        # constants, hard to override
+    templates/           # Jinja sources for template
+    files/               # static files for copy
+    meta/main.yml        # role dependencies
+```
+
+Inventories can also be INI files, common in older repositories. Here, `web[01:03]`
+expands to three hosts, `:vars` sets group variables, and `:children` nests groups:
+
+```ini
+[web]
+web[01:03].example.com
+web04 ansible_host=192.0.2.14
+
+[web:vars]
+web_port=8080
+
+[production:children]
+web
+```
+
+| Command | Purpose |
+| --- | --- |
+| `ansible-playbook` | Run a playbook |
+| `ansible` | Run one module once, ad hoc |
+| `ansible-inventory` | Show hosts, groups and their variables |
+| `ansible-doc` | Read plugin and module documentation offline |
+| `ansible-config` | Show effective settings |
+| `ansible-vault` | Encrypt and decrypt secrets |
+| `ansible-galaxy` | Install collections and roles |
+| `ansible-lint` | Check style and rules; a separate package |
+
+Flags you will see often are `-i` (inventory), `-l` (limit hosts), `-e` (extra
+variables), `-C` (check mode), `-D` (diff), `-b` (become), `-K` (prompt for the
+become password), `-t` (select tags) and `-v` (more output; repeat for more still).
 
 # Predict the run {#predict}
 
@@ -193,7 +629,7 @@ Groups are sets with attached variables, not classes with a tidy single-parent
 inheritance hierarchy. A host can be both `web` and `staging`, or both `database`
 and `production`. Do not assume those group names are mutually exclusive. Keep
 variables beside the inventory whose environment they describe; overlapping
-definitions need deliberate precedence, discussed in chapter 4.
+definitions need deliberate precedence, discussed in chapter 5.
 
 These commands, run from `examples/`, inspect the chosen inventory:
 
@@ -520,7 +956,7 @@ Here is the complete `site.yml`:
 `gather_facts` obtains target data; the pre-task rejects an unsupported environment
 before installing packages. It does not prove a machine is disposable. Inventory
 and operator selection must establish that. `serial` and `any_errors_fatal` form
-a conservative teaching rollout; their exact semantics are in chapter 6.
+a conservative teaching rollout; their exact semantics are in chapter 7.
 
 `register` captures this host's result in a dictionary. `until` retries until
 both HTTP status and body match. Jinja's `~` concatenates string representations;
@@ -1243,7 +1679,7 @@ plaintext exposure paths and propose controls matched to those paths.
 # Share ownership across tools {#ownership}
 
 This optional chapter assumes the execution, inventory and failure models from
-chapters 1–7. Its purpose is to help you specify a handover between tools; it is
+chapters 1–8. Its purpose is to help you specify a handover between tools; it is
 not a Terraform or container orchestration tutorial.
 
 ## Establish a single writer for each resource
@@ -1497,9 +1933,9 @@ agent.
 
 # Sources and verification {#sources}
 
-Research date: **20 October 2026**. The executable target is **Core 2.21.5**.
+Research date: **20 October 2026**, and **3 November 2026** for chapter 1. The executable target is **Core 2.21.5**.
 Official Ansible community documentation URLs under `latest` can change after
-this date; the version pin and recorded observations identify what this tutorial
+these dates; the version pin and recorded observations identify what this tutorial
 actually targeted. Module help installed with the pinned engine, for example
 `ansible-doc ansible.builtin.template`, is another useful local reference.
 
@@ -1526,5 +1962,5 @@ local HTTP fixture; `verification.md` records what ran and what it showed.
 Ubuntu VMs. Container checks do not establish systemd behaviour, boot enablement,
 SSH trust, target sudo policy, live fleet availability or external traffic paths.
 The unit-management claims were checked against official module documentation.
-Before real adoption, use the disposable-VM sequence in chapter 5 and adapt its
+Before real adoption, use the disposable-VM sequence in chapter 6 and adapt its
 acceptance criteria to your service. No live machines were used for verification.

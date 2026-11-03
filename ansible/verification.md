@@ -40,9 +40,25 @@ Three corrected claims were checked against the pinned 2.21.5 engine, without co
 - `--limit 192.0.2.11` against the lab inventory stopped with “no hosts to target” and exit 1. `-i '192.0.2.11,'` with `site.yml` printed “skipping: no hosts matched” and exited 0.
 - The handler-gap sequence in a fresh `mktemp -d` directory passed as `-e lab_root=$D` gave exit 2 with only `disk.txt`, then `changed=0` with `applied.txt` still absent, then `changed=1` with `applied.txt` containing `r2`.
 
+## Reading primer, 3 November 2026
+
+Chapter 1's playbooks, expressions and inventory ran under `ansible-core==2.21.5` on Python 3.14.4, using `connection: local` and a temporary directory. No remote machine was contacted. The anatomy-of-a-play example, which needs apt and sudo on a real target, passed `--syntax-check` and `--list-hosts` only. The handler, `include_role` and user-loop excerpts are shown as task fragments; the same forms ran with local fixtures, apart from the `user` and `systemd_service` modules themselves. Observations:
+
+- `hello.yml` with `-i localhost,` printed the output shown, with no inventory warnings.
+- `mode: 644` produced file mode `1204`; `0644` and `'0644'` produced `644`. An unquoted value starting with `{{` stopped with a YAML parsing error. A variable called `name` drew a reserved-name warning.
+- The filter chains, tests, `omit`, `lookup`, `block`/`rescue`/`always` and `!unsafe` gave the results described. The Jinja loop rendered one line per port. `ansible-vault encrypt_string` produced the `!vault` form. A `set_fact` inside an included task file remained visible to later tasks.
+- A `vars` timestamp differed between two tasks, while a `set_fact` copy did not.
+- `command` passed `| tr a b` to `echo` as text; `shell` ran the pipe. `--list-tasks` showed an imported file's task but only the `include_tasks` line for an include. A loop on `import_tasks` was rejected.
+- With sections deliberately out of order in the file, execution ran `pre_tasks`, `roles`, `tasks`, handlers, `post_tasks`.
+- An unreachable host (a closed local port) ran neither `rescue` nor `always`. `ansible-lint` rejected `status_port` and `__status_tmp` in a role called `status_service`, and accepted `status_service_port`.
+- The engine reports removal of the braced `when` form in 2.23 and of default top-level fact injection in 2.24.
+- The INI inventory expanded `web[01:03]`, and applied its `:vars` and `:children` sections, as described.
+
+Claims about role layout, execution order, loops, `omit` and YAML quoting were also checked against the `stable-2.21` documentation source in the `ansible/ansible-documentation` repository, the variable-naming conventions against the `ansible-lint` rule source and the Red Hat CoP good-practices guide. `docs.ansible.com` returned HTTP 429, so the rendered pages cited in this chapter were not fetched on this date.
+
 ## Document checks
 
-`make -C ansible` built the final PDF successfully using Pandoc and XeLaTeX: 44 pages. `pdffonts` confirmed embedded Latin Modern Roman (12-point body), Latin Modern Mono and Latin Modern Math. The PDF uses 160 × 230 mm pages, selectable text, linked contents and wrapping code. Inline code breaks only at separators, through `code-breaks.lua`; the extracted text, ignoring whitespace, page numbers and line-end hyphens, matched the previous build that allowed breaks anywhere, so the filter's escaping changed no characters. Bounding-box checks found no text outside the body margins plus a 6-point tolerance. Visual inspection covered the page layouts, code, tables, headings and contents.
+`make -C ansible` built the final PDF successfully using Pandoc and XeLaTeX: 53 pages. `pdffonts` confirmed embedded Latin Modern Roman (12-point body), Latin Modern Mono and Latin Modern Math. The PDF uses 160 × 230 mm pages, selectable text, linked contents and wrapping code. Inline code breaks only at separators, through `code-breaks.lua`; when the filter was added, the extracted text, ignoring whitespace, page numbers and line-end hyphens, matched the previous build that allowed breaks anywhere, so the filter's escaping changed no characters. Bounding-box checks found no text outside the body margins plus a 6-point tolerance. Visual inspection covered the page layouts, code, tables, headings and contents.
 
 Markdown was rendered with Pandoc to HTML and its document tree inspected. Code fences are balanced, supporting-file links resolve, and the five complete remote-play/role code blocks match their supplied files exactly. Tables and heading progression were inspected. `git diff --check HEAD` passed.
 
@@ -50,6 +66,6 @@ Citations were checked against the primary sources. A separate bulk HTTP link/fr
 
 ## Limits
 
-No full Ubuntu VM was available for an end-to-end SSH/sudo/systemd run. The remote example is supplied as runnable under the stated prerequisites, not represented as end-to-end tested. The disposable-VM sequence in chapter 5 remains necessary before operational adoption. Boot enablement, target sudo policy, SSH host trust, external client paths, multi-host service availability and production secret handling were not exercised.
+No full Ubuntu VM was available for an end-to-end SSH/sudo/systemd run. The remote example is supplied as runnable under the stated prerequisites, not represented as end-to-end tested. The disposable-VM sequence in chapter 6 remains necessary before operational adoption. Boot enablement, target sudo policy, SSH host trust, external client paths, multi-host service availability and production secret handling were not exercised.
 
-No `ansible-lint` run is claimed. The tutorial explains its place in an evidence ladder without presenting it as a performed check. Core is pinned; the example is not a lockfile for all transitive Python dependencies or Ubuntu package repositories. No live machines were changed.
+No `ansible-lint` run over the examples is claimed. The tutorial explains its place in an evidence ladder without presenting it as a performed check. Core is pinned; the example is not a lockfile for all transitive Python dependencies or Ubuntu package repositories. No live machines were changed.
