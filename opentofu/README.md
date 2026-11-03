@@ -1,10 +1,10 @@
 # OpenTofu: infrastructure, state and safe change
 
-Read [opentofu.pdf](opentofu.pdf), a 56-page tutorial opening with a reading primer and developing the execution and state model, HCL reading, plan review, resource identity, modules, shared operation, gradual adoption of existing infrastructure, and recovery. Ten exercises have separate worked answers. Allow 2–3 hours including the exercises.
+Read the 56-page [opentofu.pdf](opentofu.pdf) or [tutorial.md](tutorial.md), a tutorial opening with a reading primer and developing the execution and state model, HCL reading, plan review, resource identity, modules, shared operation, gradual adoption of existing infrastructure, and recovery. Ten exercises have separate worked answers. Allow 2–3 hours including the exercises.
 
 The target is **OpenTofu 1.13.0**, researched on 21 October 2026. The local-file fixture uses **hashicorp/local 2.5.3**. No cloud platform is assumed. All explanations and expected lab behaviour are included in the PDF; a terminal or internet connection is unnecessary for reading.
 
-The editable source is [tutorial.md](tutorial.md). Authoring context is kept separately in the [learner brief](brief.md) and [capability outline](outline.md). It is not included in the reading text.
+Authoring context is kept separately in the [learner brief](brief.md) and [capability outline](outline.md). It is not included in the reading text.
 
 ## Rebuild
 

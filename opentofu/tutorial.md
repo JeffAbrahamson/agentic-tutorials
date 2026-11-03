@@ -1,13 +1,10 @@
----
-title: 'OpenTofu: infrastructure, state and safe change'
-subtitle: 'From a first plan to gradual adoption'
-date: '21 October 2026 · OpenTofu 1.13.0'
-lang: en-GB
----
+# OpenTofu: infrastructure, state and safe change
 
-<span class="unnumbered"></span>
+*From a first plan to gradual adoption*
 
-# Infrastructure as a managed relationship
+21 October 2026 · OpenTofu 1.13.0
+
+## Infrastructure as a managed relationship
 
 An infrastructure description becomes useful when it can preserve the relationship between a declared object and the real object it manages. Creating a VM is the easy case. Renaming its configuration without replacing it, bringing an existing VM under management, and recovering after half a change succeeds require a more precise model.
 
@@ -19,13 +16,13 @@ The examples include their expected behaviour; the accompanying files support la
 
 The target is **OpenTofu 1.13.0**, with versioned 1.13 documentation checked on **21 October 2026**. The external local-file provider is pinned to **hashicorp/local 2.5.3**. These are reproducible teaching targets, not a claim that every future patch behaves identically. Experimental 1.13 linting and symbol libraries are outside the core path. The [release announcement](https://opentofu.org/blog/opentofu-1-13-0/) describes that release's additions.
 
-# Read OpenTofu code
+## 1. Read OpenTofu code
 
 This chapter is a phrasebook: enough to recognise each part of an OpenTofu repository, a plan and a command's output, and to know what to look up. Most items get a sentence and a small example, usually a fragment. Why things behave as they do comes in later chapters, so skim this now and return when a construct looks unfamiliar.
 
 OpenTofu's language is **HCL** (HashiCorp Configuration Language), shared with Terraform. Files end in `.tf`, and a directory of them is one **root module**: every file in it is read and order does not matter, with the override files described under "Files and everyday commands" as the exception. Many names keep the Terraform spelling, such as the `terraform { }` block and `TF_VAR_`.
 
-## Hello, world
+### 1.1 Hello, world
 
 Saved as `main.tf` in an empty directory:
 
@@ -52,7 +49,7 @@ greeting = "Hello, world"
 
 Even this leaves a `terraform.tfstate` file behind, which chapter 2 explains.
 
-## Blocks and arguments
+### 1.2 Blocks and arguments
 
 Everything is a **block**: a type, zero or more quoted labels, and a body in braces. Inside, `name = value` is an **argument**, `#` starts a comment, and a nested block has no `=`.
 
@@ -69,7 +66,7 @@ resource "local_file" "motd" {          # type, then two labels
 
 A `resource` block's labels are the **resource type** and a **local name**. The first word of the type names the provider, here `local`. Together they make the address `local_file.motd`, which is how everything else refers to it. `.tofu` files are read too and, for a file with the same stem, replace the `.tf` file; they hold OpenTofu-only features ([files](https://opentofu.org/docs/v1.13/language/files/)).
 
-## The block types
+### 1.3 The block types
 
 | Block | Meaning |
 | --- | --- |
@@ -105,7 +102,7 @@ module "dns" {
 }
 ```
 
-## Values
+### 1.4 Values
 
 ```hcl
 variable "region" {
@@ -132,7 +129,7 @@ locals {
 
 **Setting a variable**, with later ones winning: its `default`, then `TF_VAR_region` in the environment, `terraform.tfvars`, `*.auto.tfvars`, and `-var region=us` or `-var-file=prod.tfvars` on the command line. A `.tfvars` file holds only `name = value` lines.
 
-## Expressions
+### 1.5 Expressions
 
 | Form | Meaning |
 | --- | --- |
@@ -155,7 +152,7 @@ content = <<-EOT
 EOT
 ```
 
-## Repetition, conditions and errors
+### 1.6 Repetition, conditions and errors
 
 **`count` and `for_each`.** These meta-arguments make one block many instances:
 
@@ -179,7 +176,7 @@ resource "terraform_data" "named" {
 
 **Other meta-arguments.** `depends_on = [local_file.cfg]` adds an ordering that no reference implies. `provider = aws.eu` chooses a provider configured with `alias = "eu"`, and a module call passes one on with `providers = { aws = aws.eu }`. `lifecycle { }` holds `create_before_destroy`, `prevent_destroy`, `ignore_changes`, `replace_triggered_by`, and the conditions above. In a `removed` block it holds `destroy`.
 
-## Providers and versions
+### 1.7 Providers and versions
 
 ```hcl
 terraform {
@@ -195,7 +192,7 @@ terraform {
 
 `~> 2.5` allows any later 2.x, and `~> 2.5.0` only 2.5.x. `hashicorp/local` here resolves to `registry.opentofu.org/hashicorp/local`, despite the namespace. `terraform_data` is built in and needs no entry. A `backend "s3" { … }` block in the `terraform` block says where state lives (chapter 6).
 
-## Reading a plan
+### 1.8 Reading a plan
 
 `tofu plan` shows what it proposes. A symbol starts each resource, and the legend at the top lists those in use:
 
@@ -229,7 +226,7 @@ The line starting `#` above a resource gives the address and verdict, sometimes 
 
 **Exit codes.** With `-detailed-exitcode`, `tofu plan` returns 0 for no changes, 1 for an error and 2 for changes pending. Without it, pending changes also give 0.
 
-## Look-alikes, and why both exist
+### 1.9 Look-alikes, and why both exist
 
 **`count` and `for_each`.** Both repeat, but `count` identifies instances by position and `for_each` by key, so removing an item from the middle has very different effects (chapter 5).
 
@@ -249,7 +246,7 @@ The line starting `#` above a resource gives the address and verdict, sometimes 
 
 **`tofu` and `terraform`.** They share ancestry and most of the language, not a guarantee of compatibility (chapter 11).
 
-## Files and everyday commands
+### 1.10 Files and everyday commands
 
 | Path | What it is |
 | --- | --- |
@@ -278,7 +275,7 @@ The state file is JSON, with a `resources` list recording each object's `type`, 
 | `tofu providers` | Which providers each module needs |
 | `tofu console`, `tofu test` | Evaluate expressions, and run tests |
 
-## Everyday vocabulary
+### 1.11 Everyday vocabulary
 
 | Term | Meaning |
 | --- | --- |
@@ -292,9 +289,9 @@ The state file is JSON, with a `resources` list recording each object's `type`, 
 | Root module, child module | The directory you run in, and one it calls |
 | Registry | The source of published providers and modules |
 
-# Predict the engine
+## 2. Predict the engine
 
-## Four things that must stay distinct
+### 2.1 Four things that must stay distinct
 
 OpenTofu manages objects through APIs. A provider is a plugin that knows an API's resources, schemas and operations. The engine evaluates configuration, constructs dependencies, asks providers to observe objects, and coordinates changes. Usually this runs on a workstation or CI runner; it does not require an agent installed on each VM.
 
@@ -311,7 +308,7 @@ State is therefore more than a disposable cache. Without the association, the en
 
 As a mathematical sketch, planning resembles computing a change from `(configuration, bindings, observations)` rather than evaluating a pure function of configuration alone. The observations may be incomplete; provider operations can fail; other actors can mutate the world between reads and writes. A plan is a structured prediction under those conditions.
 
-## The useful SaltStack comparison
+### 2.2 The useful SaltStack comparison
 
 Salt's desired-state vocabulary is a useful bridge: repeated execution should reconcile managed properties rather than replay an arbitrary installation script. The analogy stops where object identity and lifecycle become central. OpenTofu may create or destroy an entire VM to satisfy a changed argument, and its state binds that VM to a resource address.
 
@@ -319,7 +316,7 @@ Do not translate “ensure nginx is configured” into “put an SSH script in a
 
 OpenTofu also does not continuously reconcile merely because configuration exists. A normal CLI invocation ends. Drift detection needs a later plan, scheduled automation, or some separate mechanism. The daemon-like controller model familiar from other platforms is a different operating arrangement.
 
-## A dependency graph, not a shell script
+### 2.3 A dependency graph, not a shell script
 
 An expression such as `network_id = network.private.id` supplies a value and establishes a dependency. The network must be available before an operation that needs its ID. Independent resources may proceed concurrently; putting blocks earlier in a file does not establish ordering. The engine's graph also orders destruction in relation to dependencies. The documented default operation parallelism is ten. See [the resource graph](https://opentofu.org/docs/v1.13/internals/graph/).
 
@@ -327,7 +324,7 @@ Imagine two hosts that reference a shared network. After the network is created,
 
 This matters when an agent adds `depends_on` everywhere to “make it safe”. An edge needs a causal reason. A dependency answers what must precede an operation, not whether the resulting service is acceptable.
 
-## Apply is not a transaction
+### 2.4 Apply is not a transaction
 
 Suppose the network and one VM are created, then creation of the second VM fails because quota is exhausted. Successful objects can remain, and state can record them. There is no general atomic rollback across those APIs. OpenTofu's version-pinned [apply implementation contract](https://github.com/opentofu/opentofu/blob/v1.13.0/internal/tofu/context_apply.go) explicitly allows a partially updated result when errors occur.
 
@@ -339,9 +336,9 @@ For the same reason, repeatability has qualifications. A second plan can be empt
 
 **Ask an agent:** “Which parts of this change are ordered, and what can remain after failure?” A good answer gives the relevant references, resource addresses, API identities and a plausible intermediate state. A weak answer cites file order, promises rollback, or confuses a completed API operation with a healthy service.
 
-# Read a small, complete system
+## 3. Read a small, complete system
 
-## The running example and its boundary
+### 3.1 The running example and its boundary
 
 Our fictional status service has two hosts with stable keys, `status_a` and `status_b`. First we generate a handover manifest containing addresses and roles. These documentation addresses are not real machines. The manifest is a contract example, not an Ansible inventory that you can use directly, and creating it does not create hosts.
 
@@ -398,7 +395,7 @@ output "handover" {
 
 The `terraform` spelling remains intentional in OpenTofu. A provider requirement says which plugin and version are acceptable. A provider configuration, when needed, supplies settings such as region or endpoint. The `local` provider needs none here. A backend is a third concept: where the engine stores state. It is not the provider managing this file. See [provider requirements](https://opentofu.org/docs/v1.13/language/providers/requirements/).
 
-## Read the expressions before the syntax details
+### 3.2 Read the expressions before the syntax details
 
 `var.hosts` is a map whose values are typed objects. This is a named input, not a variable that is mutated as execution proceeds. The validation rejects other roles because this particular fixture implements only a status-service handover. It is a local contract, not a claim that every fleet has one role.
 
@@ -412,19 +409,19 @@ HCL has strings, numbers, booleans, collection and structural types, and `null`.
 
 An expression can also be *unknown until apply*. That is neither `null` nor an error. A new VM's allocated address may not exist yet. The engine can preserve information about the value's type while deferring its value. This will matter when choosing resource keys.
 
-## Find the effective inputs
+### 3.3 Find the effective inputs
 
 A root input can have several sources. Defaults are the fallback; environment values named `TF_VAR_name` override them. Automatically loaded `terraform.tfvars`, then `terraform.tfvars.json`, then `*.auto.tfvars`/`*.auto.tfvars.json` files in lexical order take precedence. Finally, `-var` and `-var-file` options override those sources in command-line order. An ordinary `production.tfvars` file is not loaded just because it exists: pass it explicitly with `-var-file`.
 
 Map and object inputs are replaced as whole values, not implicitly merged. A later file supplying only `status_a` for `hosts` replaces the whole earlier map; it does not patch that entry while retaining `status_b`. This can propose removing an omitted managed host. Child-module inputs instead come from their caller's module arguments. See [input precedence](https://opentofu.org/docs/v1.13/language/values/variables/#variable-definition-precedence).
 
-## Files are an organisational choice
+### 3.4 Files are an organisational choice
 
 All ordinary configuration files in one directory form a module. Splitting this example into `versions.tf`, `variables.tf`, `main.tf` and `outputs.tf` changes readability, not ordering or scope. Nested directories are not loaded automatically. The directory in which you invoke OpenTofu is the root module; it explicitly calls child modules. See [files and directories](https://opentofu.org/docs/v1.13/language/files/).
 
 This is a useful review shortcut. If an agent claims that moving a block into `00-network.tf` forces it to run first, its execution model is wrong. If it proposes a subdirectory merely to separate a few variables, ask whether it intends a new module and interface.
 
-## Predict the first and second run
+### 3.5 Predict the first and second run
 
 From a disposable copy of `examples/manifest`, the routine sequence is:
 
@@ -446,9 +443,9 @@ For this pinned provider, editing the file externally is detected as loss of the
 
 **Ask an agent:** “Show how this input becomes a provider action and a consumer contract.” Expect a trace through the typed map, JSON encoding, resource and output, plus consumer validation. A weak answer paraphrases block names and claims that `validate` checks the actual fleet.
 
-# Review a plan as an operational proposal
+## 4. Review a plan as an operational proposal
 
-## Establish the target before counting actions
+### 4.1 Establish the target before counting actions
 
 A plan saying “one resource to change” is reassuring only after you know what it addresses. The target has several independent dimensions: root directory, selected state/backend, CLI workspace, variable values, provider configuration, and effective credentials. An apparently identical directory can reach a different account through an environment variable or credential profile.
 
@@ -456,7 +453,7 @@ Before a real change, ask for the engine version, source revision, selected prov
 
 For a personal project you may perform these checks interactively. For a shared production fleet, make the same evidence part of the run record. A human should be able to distinguish “the intended production state” from “a state file whose name happens to include prod”. These are design recommendations; the engine cannot infer your organisational intention from names.
 
-## Read actions and their reasons
+### 4.2 Read actions and their reasons
 
 Typical plan notation includes `+` create, `~` update in place, `-` destroy, and a combined destroy/create marker for replacement. Read the exact legend in the output. A replacement is materially different from an update even if the input change is a single line.
 
@@ -466,7 +463,7 @@ Unknown values need interpretation. An allocated IP being unknown for a new mach
 
 Ordinary planning refreshes observations; disabling refresh can conceal external change. The plan command also offers targeted planning for exceptional recovery, but a routinely targeted plan is not evidence about the whole root. Use deliberate root/state boundaries for routine independent operations. See [plan modes and options](https://opentofu.org/docs/v1.13/cli/commands/plan/).
 
-## Saved plans and the approval boundary
+### 4.3 Saved plans and the approval boundary
 
 An unsaved plan is a preview. Running bare `tofu apply` later calculates another plan, which can differ. To apply the reviewed proposal, save it with `-out`, inspect that artifact, and pass that artifact to `apply`.
 
@@ -476,7 +473,7 @@ The artifact needs provenance: source revision, inputs, engine/provider selectio
 
 A saved plan also does not reserve remote capacity or prevent console edits. State changes can make it stale; external changes need not advance this state's revision. A long delay, unexpected intervention or changed operational conditions justifies discarding it and obtaining a fresh reviewed plan. Do not claim that it constitutes a distributed lock or a service rollout guarantee.
 
-## A plan is not an acceptance test
+### 4.4 A plan is not an acceptance test
 
 Consider an intended replacement of one status VM. The plan correctly creates a new VM before deleting the old one. The new VM's API status becomes running; its application is broken. From an infrastructure perspective the API calls may have succeeded. From your perspective the rollout failed.
 
@@ -488,9 +485,9 @@ An agent can write the HCL and propose those checks. You retain the decision abo
 
 **Ask an agent:** “Which exact artifact will execute, against which identities, and what result would still count as failure?” Expect the artifact provenance, effective target evidence, replacement details and external acceptance criteria. Warning signs include only a plan summary, unexplained `-auto-approve`, or applying bare `apply` after approval of a different preview.
 
-# Preserve identity through change
+## 5. Preserve identity through change
 
-## Identity is part of the interface
+### 5.1 Identity is part of the interface
 
 Suppose you want a resource per host. You can use `count` to create numeric instances, or `for_each` to create keyed instances. The choice defines persistent addresses, not merely loop syntax.
 
@@ -520,7 +517,7 @@ Here the addresses include `terraform_data.host["status_a"]` and `terraform_data
 
 Choose keys as deliberately as database primary keys. A customer-facing display name may change; an allocated IP may be unknown until apply. Neither is a good default identity for a durable host. `for_each` keys must be known before remote operations and cannot be sensitive. Values under known keys may contain unknown attributes. `for_each` accepts maps or sets of strings; converting a list with `toset` removes duplicates and ordering. See [for_each](https://opentofu.org/docs/v1.13/language/meta-arguments/for_each/).
 
-## A lifecycle laboratory
+### 5.2 A lifecycle laboratory
 
 `terraform_data` is a real built-in resource that records values in state without provisioning a VM. Its `input` can change in place; changing `triggers_replace` forces replacement. It needs no downloaded provider. That makes it a controlled fixture for reasoning about identity; it does not simulate cloud quotas, external drift or provider timeouts. See [terraform_data](https://opentofu.org/docs/v1.13/language/resources/tf-data/).
 
@@ -528,7 +525,7 @@ For the supplied defaults, applying creates two IDs. Planning with `update.tfvar
 
 The exact prediction is useful. If a generated implementation changes both IDs while trying to change one host's role, ask which identity or lifecycle assumption changed. A matching resource count is insufficient: “two before, two after” can conceal replacement of both.
 
-## Refactor with an explicit relationship
+### 5.3 Refactor with an explicit relationship
 
 Renaming `host` to `node` changes addresses. Without a recorded relationship, the engine can interpret old addresses as removed and new addresses as new resources. When the intended operation is a rename, preserve the association:
 
@@ -544,7 +541,7 @@ The plan should show moves without infrastructure replacement if the arguments s
 
 This gives a good rule for a long transition: separate a structural refactor from an infrastructure change when practical. First prove the new addresses still own the same objects. Then make the intended behavioural change. Smaller causal steps make unexpected replacements easier to explain.
 
-## Replacement policies have limits
+### 5.4 Replacement policies have limits
 
 Replacement normally deletes the old object before creating its successor. `create_before_destroy` reverses that order; it requires temporary capacity and names that allow coexistence. It does not establish service readiness or switch traffic. Its ordering can propagate to dependencies and be recorded in state.
 
@@ -556,9 +553,9 @@ For a database, additional provider-side deletion protection, access restriction
 
 **Ask an agent:** “What preserves each existing object's identity through this edit?” Expect old and new addresses, remote IDs, explicit moves where needed and a plan accounting for every replacement. A weak answer says that names are cosmetic or that a lifecycle flag proves availability.
 
-# Own the state as an operational system
+## 6. Own the state as an operational system
 
-## Choose the unit of change
+### 6.1 Choose the unit of change
 
 One root invocation manages a state and a graph. A single state for an entire organisation is simple to discover but couples unrelated changes, access and recovery. A state per individual resource makes every relationship an integration problem. Neither extreme follows from the number of hosts.
 
@@ -568,7 +565,7 @@ Splitting state removes graph edges across the boundary. If application infrastr
 
 Do not split merely to eliminate an inconvenient plan. If two roots both believe they own one firewall rule, separate locks cannot make that ownership coherent.
 
-## What a backend does
+### 6.2 What a backend does
 
 A backend implements state storage and related coordination. Local state is suitable for these disposable labs. Shared operational use usually needs durable remote storage, controlled access, recoverable history and locking where supported. Backend support is built into the CLI; it is separate from resource provider configuration.
 
@@ -578,7 +575,7 @@ Changing storage is a migration. Freeze writers, back up the current state using
 
 For an S3 backend, OpenTofu 1.13 supports native locking with `use_lockfile = true`; the documentation recommends that mechanism and bucket versioning. DynamoDB locking remains supported and is not scheduled for OpenTofu deprecation. An article about Terraform's backend policy is not sufficient evidence about OpenTofu. The actual permissions and object paths must come from your chosen backend design. See [the OpenTofu S3 backend](https://opentofu.org/docs/v1.13/language/settings/backends/s3/).
 
-## What a lock does not do
+### 6.3 What a lock does not do
 
 For supporting backends, state locking coordinates writers of that state. It does not prevent a console user changing a VM, and it does not coordinate another state that owns the same VM. Do not disable locking to get past contention. Establish whether the lock belongs to a live run; force-unlock is an abandoned-lock recovery operation after that investigation. See [state locking](https://opentofu.org/docs/v1.13/language/state/locking/).
 
@@ -586,7 +583,7 @@ The simplest organisational policy is usually a single authorised writer path pe
 
 CLI workspaces select different state instances using shared configuration and backend arrangements. They can be handy for similar temporary environments. They do not create separate credential boundaries or automatically make remote object names unique. Distinct production/development permissions usually justify separate roots and backend arrangements that call shared modules. See [workspace limitations](https://opentofu.org/docs/v1.13/cli/workspaces/).
 
-## Secrets follow the data
+### 6.4 Secrets follow the data
 
 A password marked `sensitive` is redacted in ordinary presentation; the marking does not make normal persisted values disappear. State and plan access may reveal them. Do not put state, plans or `.terraform/` in Git. Do keep the provider lock file. Be equally deliberate about CI artifacts, debug logs and outputs copied into an agent's context. See [sensitive state data](https://opentofu.org/docs/v1.13/language/state/sensitive-data/).
 
@@ -598,9 +595,9 @@ Use narrow handover interfaces. `terraform_remote_state` makes root outputs conv
 
 **Ask an agent:** “Who can read or write this state, and what happens if the runner or keys disappear?” Expect backend and principal evidence, lock behaviour, backup/version history and a tested recovery path. Warning signs include secrets committed as tfvars, lock suppression, or “encrypted” without a key recovery design.
 
-# Grow the configuration deliberately
+## 7. Grow the configuration deliberately
 
-## A module should hide a policy, not just some lines
+### 7.1 A module should hide a policy, not just some lines
 
 The directory you have been using is already a module: the root module. A child module packages configuration behind input variables and outputs. Calling it does not give it separate state; its resources join the caller's graph and state under addresses such as `module.status.terraform_data.host["status_a"]`.
 
@@ -623,7 +620,7 @@ output "handover" {
 
 The module's implementation defines the input type and output. Its source directory is a dependency, not an automatically discovered folder. Moving existing resources into it changes addresses; include the corresponding moves and inspect the plan. Consult [module composition](https://opentofu.org/docs/v1.13/language/modules/develop/composition/) for the distinction between composing capabilities and constructing deeply nested abstractions.
 
-## Dependencies must express the real reason
+### 7.2 Dependencies must express the real reason
 
 Prefer references to values actually needed by a resource. If a VM requires a subnet ID, pass that subnet ID. `depends_on` is for a dependency that exists through behaviour but is not expressed by such data: for example, an access-policy attachment that must be completed before an API operation using the associated role.
 
@@ -633,7 +630,7 @@ A data source reads an existing object rather than declaring ownership of its li
 
 During adoption, this distinction is particularly valuable. A host that remains externally owned can be passed as a validated input or looked up with a data source. Do not declare a managed VM resource merely to obtain its address: that declaration says the root should manage the VM.
 
-## Providers are part of the target
+### 7.3 Providers are part of the target
 
 Configure providers in the root and pass the intended configurations to child modules. Aliases distinguish multiple configurations of one provider, such as regions or accounts. Each alias needs a clear identity; its name does not verify its credentials. A resource accidentally using the default configuration can target a different account from neighbouring resources.
 
@@ -641,7 +638,7 @@ An implementation should make provider selection inspectable. If a module expect
 
 For an inherited repository, trace one resource end to end before editing: root invocation, variable sources, module call, provider selection, backend and address in state. This reveals conventions that a directory listing misses. A wrapper script may select an account; CI may pass a tfvars file; a default provider may be used only for legacy resources. Preserve those facts or propose a deliberate migration of them.
 
-## Reproducibility has several layers
+### 7.4 Reproducibility has several layers
 
 The engine, providers and modules have separate versions. A provider constraint specifies acceptable versions; the root's `.terraform.lock.hcl` records the selected providers and checksums. Keep that lock file in version control and review upgrades as changes. `init -upgrade` deliberately reconsiders selections within constraints; it is not a routine prerequisite for every apply.
 
@@ -653,9 +650,9 @@ The strict fixture pins make these lessons reproducible. A production root can u
 
 **Ask an agent:** “Which policy does this module enforce, and which decisions remain visible to the caller?” A good answer includes the typed interface, provider expectations, ownership and migration plan. Warning signs include abstractions justified only by line count, unspecified module versions, or outputs that reveal the entire internal resource object.
 
-# Adopt an existing fleet without recreating it
+## 8. Adopt an existing fleet without recreating it
 
-## Begin with ownership, not import commands
+### 8.1 Begin with ownership, not import commands
 
 An existing system already has identities and writers: cloud consoles, scripts, Salt, Ansible, previous IaC, vendor automation and people. Before adoption, identify the objects, who owns which properties, where state may already exist, and what must keep working during transition.
 
@@ -665,7 +662,7 @@ A practical first unit is a non-critical service with an identifiable owner, doc
 
 Create a transition record for each class of object: its current API identity, the intended resource address, the current and future owner, fields being adopted, and the evidence required before the next step. This record is especially useful when adoption spans months. A plan only tells you what the current configuration proposes, not which future migration phase a machine belongs to.
 
-## Import binds an existing identity
+### 8.2 Import binds an existing identity
 
 For a provider supporting a string import ID, a declarative import has this shape:
 
@@ -688,7 +685,7 @@ After applying the adoption plan, inspect the binding, generate another plan and
 
 Generated configuration can help discover schema, but it cannot decide which provider defaults are policy, which observed values are accidental, or which fields another system should own. Treat generated output as a draft requiring that interpretation.
 
-## Adopt in stages with a narrow handover
+### 8.3 Adopt in stages with a narrow handover
 
 Consider a fleet currently configured by Salt. One possible sequence is:
 
@@ -704,7 +701,7 @@ The manifest example gives a small contract to expand: stable host key, address 
 
 Cloud-init or a machine image can provide a minimal bootstrap path. Salt or Ansible can own subsequent packages and service configuration. If an image and Ansible both write the same persistent setting, decide which is authoritative after boot. An infrastructure provisioner that invokes SSH scripts ties host configuration failure to infrastructure lifecycle and may run on a different runner from the one you expected. The [provisioner documentation](https://opentofu.org/docs/v1.13/language/resources/provisioners/syntax/) recommends other approaches where possible.
 
-## Leaving management is also a change
+### 8.4 Leaving management is also a change
 
 Deleting a managed resource block normally expresses that the object should be destroyed. To end management while retaining an object, use an explicit reviewed forgetting operation. A `removed` block can express this intent:
 
@@ -728,9 +725,9 @@ For a transfer between live states, freeze both writers and follow a planned, ba
 
 **Ask an agent:** “What changes ownership in this phase, and what proves that everything else continues to have one writer?” Expect current identities, old/new state ownership, field boundaries, the full adoption plan and an observable cutover. Warning signs include importing into a second live state, blanket `ignore_changes`, or using a replacement to avoid understanding an existing object.
 
-# Establish evidence at several levels
+## 9. Establish evidence at several levels
 
-## Each check answers a different question
+### 9.1 Each check answers a different question
 
 Formatting checks make the HCL consistent. Validation checks configuration structure and internal consistency with available schemas. Neither establishes cloud access, quota, correct account, service reachability or safe replacement. See [validate](https://opentofu.org/docs/v1.13/cli/commands/validate/).
 
@@ -740,7 +737,7 @@ Repeat execution checks another property. A second unchanged plan should normall
 
 Think of verification as a set of claims with different witnesses, rather than a ladder where one green stage proves everything below and above it. A provider can successfully create a security rule permitting too much access; a health check can probe the old host instead of the replacement.
 
-## Encode contracts that should block progress
+### 9.2 Encode contracts that should block progress
 
 Variable validation rejects inputs that violate a module's contract. Resource preconditions can block an operation when a required condition fails. Postconditions evaluate the resource's result, so failure can be reported after an object has changed. They do not roll it back.
 
@@ -748,7 +745,7 @@ A `check` block is different: an assertion failure warns during normal plan/appl
 
 There is a timing question as well as a boolean question. A precondition based on values known at plan time can fail before changes. If its value is unknown until a dependency is created, the decision can be deferred to apply. Our failure fixture relies on exactly that timing. An assertion's placement does not mean the entire run has remained unchanged up to that point.
 
-## Read a test's execution mode
+### 9.3 Read a test's execution mode
 
 The manifest's `tests/contract.tftest.hcl` contains these tests:
 
@@ -780,7 +777,7 @@ The first asserts the consumer contract for the fixture. The second checks that 
 
 `tofu test` defaults to applying, not merely planning, unless a run says otherwise. Real providers can therefore create billable resources. The command uses test state and attempts cleanup, but external names and API accounts can still collide with other activity. Plan-only tests can still read provider APIs; mocks test assumptions about a provider, not the real provider's behaviour. `expect_failures` checks authored custom conditions, not arbitrary provider errors. See [the test command](https://opentofu.org/docs/v1.13/cli/commands/test/).
 
-## A bounded acceptance record
+### 9.4 A bounded acceptance record
 
 For an agent-written change to the status handover, useful evidence would include the exact input change; an action-by-action plan for the intended state; an independent parse and schema check of the generated JSON; and a repeat plan. For a real host adoption, add observed remote identity and service checks before and after. For a replacement, add cutover and data-preservation evidence.
 
@@ -792,9 +789,9 @@ Keep the check proportionate. You do not need a miniature testing framework to r
 
 **Ask an agent:** “Which claim does each check establish, and how could this still pass while being wrong?” Expect concrete counterexamples and matching independent checks. Warning signs include treating mocked tests as provider integration, health checks without object identity, and test runs whose default apply mode went unnoticed.
 
-# Recover from partial completion
+## 10. Recover from partial completion
 
-## A failure you can predict
+### 10.1 A failure you can predict
 
 The complete `examples/partial-failure/main.tf` is deliberately artificial. It creates one built-in resource, then evaluates a condition that blocks a second. No cloud, files managed by an external provider, shell provisioners or credentials are involved.
 
@@ -848,7 +845,7 @@ tofu plan -var=allow_second=true -detailed-exitcode
 
 The recovery does not reuse the failed saved plan; it produces a new plan from the new state. Its approval still needs review. Also notice that the final command repeats the corrected variable. Running later with the original default does not mean “remember the last command's flag”: root inputs are resolved again.
 
-## Diagnose before repairing
+### 10.2 Diagnose before repairing
 
 For a real failed run, preserve the command, source revision, input provenance, provider versions, state identity, logs and timestamps. Establish that no runner is still active. Inspect the reported resource address and API error; then compare recorded bindings with the actual object. Be careful with log collection because provider debug logs can contain secrets.
 
@@ -866,7 +863,7 @@ An API timeout is an epistemic problem: failure to receive success is not proof 
 
 Failed creation can mark an incomplete resource as tainted so a later plan replaces it. Not every failure taints every object. If replacement is the correct remedy, `plan -replace=ADDRESS` makes the request reviewable. Untainting is justified only after establishing the object's health; it is not a way to make a frightening plan disappear. See [taint and replacement](https://opentofu.org/docs/v1.13/cli/state/taint/).
 
-## Drift has three possible policies
+### 10.3 Drift has three possible policies
 
 When an external actor changes a managed property, decide whether to restore the configured policy, accept the change as the new policy, or delegate that field to another owner. The engine cannot make this organisational decision.
 
@@ -876,7 +873,7 @@ Prefer the reviewable `plan -refresh-only`/apply workflow to the deprecated `ref
 
 If a property is delegated, document the owner and scope of `ignore_changes` where appropriate. “Ignore everything” is not a repair for an unexplained diff. It removes evidence from future plans while leaving the underlying responsibility unresolved.
 
-## Recovery is not time travel
+### 10.4 Recovery is not time travel
 
 Reverting configuration asks for a new future matching earlier intentions. It may create replacements, fail to reacquire an old name, or leave changed data untouched. Restoring old state changes recorded associations; it does not restore the objects themselves. Restoring a backup changes data and may require coordination with application state and traffic.
 
@@ -888,11 +885,11 @@ For a stateful service, the recovery design needs to exist before replacement: b
 
 **Ask an agent:** “What do we know exists, what is uncertain, and which observation will distinguish the hypotheses?” Expect state and API identities, an explanation of partial completion, and a fresh bounded plan after repair. Warning signs include restoring state as rollback, deleting a lock immediately, or retrying until the error disappears.
 
-# Choose an engine and a bounded next step
+## 11. Choose an engine and a bounded next step
 
 This chapter is an optional branch. The previous chapters supply the model needed to evaluate it.
 
-## Shared ancestry does not prove interchangeability
+### 11.1 Shared ancestry does not prove interchangeability
 
 OpenTofu and Terraform share a language and provider ecosystem, so learning resource addresses, dependencies, modules and state transfers well. Compatibility nevertheless belongs to particular engine, provider, module and backend versions. A tutorial that tells you merely to rename the executable is making a claim it has not established.
 
@@ -900,7 +897,7 @@ OpenTofu-specific features include its client-side state/plan encryption and new
 
 When reviewing inherited work, first establish the intended engine. Check scripts, CI images and version files as well as HCL. Do not combine a provider upgrade, address refactor, backend migration and engine switch into one unexplained plan. Any of those can change behaviour independently.
 
-## Treat engine migration as a controlled change
+### 11.2 Treat engine migration as a controlled change
 
 A reasonable migration procedure starts with an understood baseline and tested backups, freezes competing writers, records exact dependency versions, initialises the intended engine, and reviews an equivalent/no-op plan. Only then make and verify a small non-critical change. Record how the previous operating path could be restored, including whether it can still read the state after the new engine has written it. See [the migration guide](https://opentofu.org/docs/v1.13/intro/migration/migration-guide/).
 
@@ -908,7 +905,7 @@ Do not assume bidirectional state compatibility. The current guide for interdepe
 
 This is separate from adopting an existing fleet that has no Terraform state. Import establishes management bindings; engine migration changes the program operating already-managed bindings. You may encounter both during a long transition, but they have different acceptance conditions.
 
-## Specify one useful real change
+### 11.3 Specify one useful real change
 
 Choose one low-impact object class with an API and a clear owner. DNS for a non-critical service might fit; a production database with unknown backup behaviour probably does not. Inspect provider support for reads, import, updates and deletion before selecting the pilot.
 
@@ -920,15 +917,11 @@ The agent can research the selected provider, produce HCL, run isolated checks a
 
 **Ask an agent:** “Which compatibility and lifecycle claims depend on the exact versions, and what isolated evidence supports them?” Expect versioned sources, a baseline, state-read/write testing and a controlled plan. Warning signs include blanket compatibility assurances or restoring an older state file to make the old executable start.
 
-<span class="unnumbered"></span>
-
-# Worked answers
+## Worked answers
 
 <span id="answer-1"></span>
 
-<span class="unnumbered"></span>
-
-## 1. The failed run
+### 1. The failed run
 
 [Back to exercise 1](#exercise-1)
 
@@ -938,9 +931,7 @@ First preserve logs and state history, establish that the writer has stopped, id
 
 <span id="answer-2"></span>
 
-<span class="unnumbered"></span>
-
-## 2. The handover
+### 2. The handover
 
 [Back to exercise 2](#exercise-2)
 
@@ -952,9 +943,7 @@ The output value and the file content agree by construction, so comparing them i
 
 <span id="answer-3"></span>
 
-<span class="unnumbered"></span>
-
-## 3. The saved plan
+### 3. The saved plan
 
 [Back to exercise 3](#exercise-3)
 
@@ -966,9 +955,7 @@ The acceptance record should therefore tie the plan to its source, inputs, state
 
 <span id="answer-4"></span>
 
-<span class="unnumbered"></span>
-
-## 4. The renamed key
+### 4. The renamed key
 
 [Back to exercise 4](#exercise-4)
 
@@ -980,9 +967,7 @@ If the change is only for presentation, retaining the stable key and introducing
 
 <span id="answer-5"></span>
 
-<span class="unnumbered"></span>
-
-## 5. The three workspaces
+### 5. The three workspaces
 
 [Back to exercise 5](#exercise-5)
 
@@ -994,9 +979,7 @@ The design must also account for selecting the wrong workspace. A convenient sel
 
 <span id="answer-6"></span>
 
-<span class="unnumbered"></span>
-
-## 6. The universal module
+### 6. The universal module
 
 [Back to exercise 6](#exercise-6)
 
@@ -1008,9 +991,7 @@ Ask for two concrete callers and their common policy, the minimal typed interfac
 
 <span id="answer-7"></span>
 
-<span class="unnumbered"></span>
-
-## 7. Import plus replacement
+### 7. Import plus replacement
 
 [Back to exercise 7](#exercise-7)
 
@@ -1022,9 +1003,7 @@ Do not mask the uncertainty with broad `ignore_changes`. If a particular field b
 
 <span id="answer-8"></span>
 
-<span class="unnumbered"></span>
-
-## 8. The warning that did not gate
+### 8. The warning that did not gate
 
 [Back to exercise 8](#exercise-8)
 
@@ -1034,9 +1013,7 @@ For host replacement, formatting and validation are useful but insufficient. Rev
 
 <span id="answer-9"></span>
 
-<span class="unnumbered"></span>
-
-## 9. The missing database
+### 9. The missing database
 
 [Back to exercise 9](#exercise-9)
 
@@ -1048,9 +1025,7 @@ Once the target is repaired, obtain a new plan. The acceptable result depends on
 
 <span id="answer-10"></span>
 
-<span class="unnumbered"></span>
-
-## 10. The compound migration
+### 10. The compound migration
 
 [Back to exercise 10](#exercise-10)
 
@@ -1060,9 +1035,7 @@ Handle the provider upgrade separately, inspecting its version-specific changes 
 
 An isolated state copy does not authorise applying against the same live objects from a second writer. Isolation of state storage is not isolation of the managed API objects.
 
-<span class="unnumbered"></span>
-
-# A compact operational reference
+## A compact operational reference
 
 | Question | Useful evidence |
 | --- | --- |
@@ -1080,13 +1053,9 @@ Useful read-oriented commands include `tofu state list` for addresses, `tofu sta
 
 Treat `state rm`, `state push`, `force-unlock`, `-replace` and destroy planning as operations with distinct intentions. They are not interchangeable ways to make a diff disappear. Review the hypothesis and evidence behind the chosen operation.
 
-<span class="unnumbered"></span>
+## Reproduce the laboratories
 
-# Reproduce the laboratories
-
-<span class="unnumbered"></span>
-
-## Files and prerequisites
+### Files and prerequisites
 
 The labs are independent roots. Use a disposable copy of each example directory so that its state and generated files stay separate from any real project. Run each command from the corresponding lab directory. All assume OpenTofu **1.13.0** on Linux; use the [official installation instructions](https://opentofu.org/docs/v1.13/intro/install/) for the appropriate platform and verify `tofu version`.
 
@@ -1100,9 +1069,7 @@ The built-in-resource labs need no provider download. The manifest requires netw
 
 The manifest writes only beneath its own `generated/` directory. Its documentation addresses are literal examples; it does not contact them. The two other labs manage only built-in-resource state. No lab needs a cloud account or root privilege. API-based examples in the chapters are labelled illustrations and are not complete cloud configurations.
 
-<span class="unnumbered"></span>
-
-## Manifest: create, repeat, then detect drift
+### Manifest: create, repeat, then detect drift
 
 The complete configuration is in chapter 3. In a fresh disposable copy:
 
@@ -1121,9 +1088,7 @@ Expect one creation, then no changes. Read `generated/handover.json` with any JS
 
 Now replace the generated file's content with any visibly different text using an editor. Plan again. For the pinned local provider, the tracked content is now absent, so the plan proposes creation to restore it. Apply a newly reviewed saved plan, inspect the repaired JSON, and obtain an unchanged repeat plan. This is the measured behaviour of the fixture, not a general rule that all providers represent drift as a create.
 
-<span class="unnumbered"></span>
-
-## Lifecycle: update versus replace
+### Lifecycle: update versus replace
 
 Here is the complete initial `main.tf`:
 
@@ -1183,17 +1148,13 @@ The first proposes one in-place update, the second one replacement. Neither spec
 
 To explore refactoring independently, start from the baseline. Rename the resource block from `host` to `node`, update the output's reference to `terraform_data.node`, and add the chapter 5 `moved` block. The plan should preserve both IDs and show no infrastructure creation or deletion. Without the move, the same spelling change represents different addresses.
 
-<span class="unnumbered"></span>
-
-## Failure: recover from what remains
+### Failure: recover from what remains
 
 Use a fresh copy of the complete chapter 10 fixture. Follow its command sequence. Expect an apply error after `first` is created, then a state listing containing only `terraform_data.first`. The corrected plan with `allow_second=true` should propose only the missing second resource; a repeat plan with the same flag should be empty.
 
 Once each lab is finished, `tofu destroy` in that disposable root removes its managed fixture resources. In the failure lab, supply `-var=allow_second=true` to retain the corrected input consistently. Inspect the destroy plan and use the interactive approval. Local state and plan artifacts remain ordinary files; retain or remove the disposable copy according to your experiment needs. Do not use a cleanup command against an unrelated working directory.
 
-<span class="unnumbered"></span>
-
-## Verification boundary
+### Verification boundary
 
 The local examples were executed with OpenTofu 1.13.0 on Linux amd64. Checks covered initial apply, no-change repetition, the two lifecycle variants, a move preserving identity, external file-edit repair, both contract tests, and deliberate partial failure followed by recovery. The fixture plans were inspected as structured data as well as read in human form. The main forms of chapter 1 were checked on 3 November 2026 with the same engine, and `verification.md` lists them.
 

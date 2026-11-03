@@ -44,6 +44,8 @@ The parts of chapter 1 listed here ran under OpenTofu 1.13.0, from the release a
 
 The primer's three new documentation URLs returned HTTP 200. Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 10 links each way, all landing on the right text.
 
+On 3 November 2026, chapter and section numbers, the title, subtitle and date moved into the Markdown so that it reads on GitHub. Comparing the rebuilt PDF's text with the previous build showed only heading punctuation and consequent line breaks. All links were traced again and land on the right text.
+
 ## Limits
 
 No cloud resource was deployed. Cloud import syntax is an illustration without a complete provider/resource configuration. Remote backends, competing writers, encryption/key recovery, backend migration, real fleet adoption, SSH/cloud-init, and Terraform engine migration were not executed. These need provider-specific isolated acceptance tests before operational use. The dependency lock was installed and exercised on Linux amd64; other runner platforms were not tested.
