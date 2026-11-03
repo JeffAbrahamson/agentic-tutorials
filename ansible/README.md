@@ -14,7 +14,7 @@ From the repository root:
 make -C ansible
 ```
 
-This produces `ansible/ansible.pdf`. Its 160 × 230 mm single-column pages use 12-point Latin Modern Roman body text, Latin Modern Mono for code, a linked contents page, selectable text and wrapping code. The PDF is retained alongside its source; temporary files live in ignored `.build/`. Editing the source and running Make rebuilds the deliverable. The PDF uses Markdown source, rather than a separately maintained LaTeX document; [pdf-header.tex](pdf-header.tex) supplies small typesetting adjustments, and [code-breaks.lua](code-breaks.lua) lets inline code break only at separators such as `/`, `.` and `_`, never mid-word.
+This produces `ansible/ansible.pdf`. Its 160 × 230 mm single-column pages use 12-point Latin Modern Roman body text, Latin Modern Mono for code, a linked contents page, selectable text and wrapping code. The PDF is retained alongside its source; temporary files live in ignored `.build/`. Editing the source and running Make rebuilds the deliverable. The PDF uses Markdown source, rather than a separately maintained LaTeX document; [pdf-header.tex](pdf-header.tex) supplies small typesetting adjustments, and [code-breaks.lua](code-breaks.lua) lets inline code break only at separators such as `/`, `.` and `_`, never mid-word. [link-anchors.lua](link-anchors.lua) keeps the empty spans that exercise and answer links target together with their text, so a page break cannot make a link land on the wrong page.
 
 ## Examples
 

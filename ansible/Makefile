@@ -4,11 +4,12 @@ PDF_ENGINE ?= xelatex
 .PHONY: all clean
 all: ansible.pdf
 
-ansible.pdf: tutorial.md pdf-header.tex code-breaks.lua Makefile
+ansible.pdf: tutorial.md pdf-header.tex code-breaks.lua link-anchors.lua Makefile
 	mkdir -p .build
 	$(PANDOC) tutorial.md --standalone --toc --toc-depth=2 \
 	  --number-sections --pdf-engine=$(PDF_ENGINE) \
 	  --include-in-header=pdf-header.tex --lua-filter=code-breaks.lua \
+	  --lua-filter=link-anchors.lua \
 	  --highlight-style=tango --resource-path=. \
 	  --metadata=lang:en-GB \
 	  --variable=documentclass:article \

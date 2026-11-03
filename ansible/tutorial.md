@@ -578,9 +578,9 @@ side effects, tasks still eligible on each host and handler implications. A weak
 answer says “Ansible is declarative, so rerunning will fix it” without explaining
 intermediate state.
 
-**Exercise 1 — predict.** A play writes a valid configuration, starts a service
+<span id="exercise-1"></span>**Exercise 1 — predict.** A play writes a valid configuration, starts a service
 and then fails its health check. Which earlier effects remain? What would you
-need to inspect before deciding to rerun? Write a three-sentence answer.
+need to inspect before deciding to rerun? Write a three-sentence answer. [Worked answer](#answer-1)
 
 # Prove the target before changing it {#target}
 
@@ -714,10 +714,10 @@ selected config, inventory output, actual aliases and effective connection data.
 “The play says `hosts: web`” is inadequate because the inventory determines what
 `web` contains.
 
-**Exercise 2 — review.** An agent reports success after running a play with
+<span id="exercise-2"></span>**Exercise 2 — review.** An agent reports success after running a play with
 `--limit 192.0.2.11`, while the inventory calls that host `lab-status-01`. What
 must you check? Why is changing to an inline address inventory a poor automatic
-fix?
+fix? [Worked answer](#answer-2)
 
 # Configure one real service {#service}
 
@@ -980,11 +980,11 @@ answer distinguishes candidate validation, disk installation, reload, host-local
 response and any external path still untested. “The handler succeeded” leaves
 those distinctions unresolved.
 
-**Exercise 3 — review.** An agent proposes replacing the handler with
+<span id="exercise-3"></span>**Exercise 3 — review.** An agent proposes replacing the handler with
 `state: restarted` in an ordinary task on every run, and adding
 `daemon_reload: true` “so nginx sees its config”. Identify the two mistaken
 assumptions and describe the useful evidence for deciding between reload and
-restart.
+restart. [Worked answer](#answer-3)
 
 # Trace data before adding abstraction {#data}
 
@@ -1123,10 +1123,10 @@ precedence relationship, actual type and rendered result. A weak answer points
 to a default while ignoring inventory, or creates another `set_fact` to mask
 the conflict.
 
-**Exercise 4 — trace.** The role default is port 8080, inventory group data says
+<span id="exercise-4"></span>**Exercise 4 — trace.** The role default is port 8080, inventory group data says
 8081 and the command supplies `-e '{"status_port": 8082}'`. Which wins? If an
 operator supplies `-u emergency` but inventory has `ansible_user: deploy`, can
-they assume the SSH login changed?
+they assume the SSH login changed? [Worked answer](#answer-4)
 
 # Build evidence in layers {#evidence}
 
@@ -1281,10 +1281,10 @@ untested target distributions, privilege boundaries, fresh-host dependencies,
 repetition, interruption and external request paths as applicable. “Syntax,
 lint and check all passed” is an evidence list, not an explanation of coverage.
 
-**Exercise 5 — acceptance.** A change reports `changed=0` on its second run and
+<span id="exercise-5"></span>**Exercise 5 — acceptance.** A change reports `changed=0` on its second run and
 its health task receives HTTP 200. Write three additional acceptance criteria before
 you would trust it on a Jellybooks service. Make each identify a failure that
-those two observations could miss.
+those two observations could miss. [Worked answer](#answer-5)
 
 # Control a fleet change {#fleet}
 
@@ -1397,11 +1397,11 @@ one concrete batch, task ordering, failure policy, rescue and membership state.
 A weak answer points only at `forks: 5` or promises that `serial` ensures zero
 downtime.
 
-**Exercise 6 — predict.** A 12-host play has `serial: [1, 5]`,
+<span id="exercise-6"></span>**Exercise 6 — predict.** A 12-host play has `serial: [1, 5]`,
 `any_errors_fatal: true`, and a successful first batch. One host in the second
 batch fails after all five have installed new configuration. How many hosts
 might already have changed? What happens to the remaining six? Would adding
-`run_once` to a migration make it globally once-only?
+`run_once` to a migration make it globally once-only? [Worked answer](#answer-6)
 
 # Diagnose partial completion and recover deliberately {#recovery}
 
@@ -1532,10 +1532,10 @@ then proposes a validated transition and acceptance check. “Delete the file so
 Ansible notices a change” is a warning sign: it manufactures state loss to trigger
 an action whose reason should be explicit.
 
-**Exercise 7 — diagnose.** After a failed rollout, the next run reports
+<span id="exercise-7"></span>**Exercise 7 — diagnose.** After a failed rollout, the next run reports
 `changed=0`, nginx is active, and the exact health check still returns `r1`
 instead of `r2`. Give two explanations and the observations that distinguish
-them. What must a recovery prove before moving to the next host?
+them. What must a recovery prove before moving to the next host? [Worked answer](#answer-7)
 
 # Keep operations understandable {#operations}
 
@@ -1671,10 +1671,10 @@ small diff tied to existing conventions and observed tests. A weak answer adds
 a secret backend, role framework and dependency upgrade without showing why the
 requested change requires them.
 
-**Exercise 8 — security review.** A proposal encrypts `secrets.yml` with Vault,
+<span id="exercise-8"></span>**Exercise 8 — security review.** A proposal encrypts `secrets.yml` with Vault,
 uses its contents in a template with mode `'0644'`, and enables `--diff` in CI.
 The author says the values are safe because Git contains ciphertext. Trace two
-plaintext exposure paths and propose controls matched to those paths.
+plaintext exposure paths and propose controls matched to those paths. [Worked answer](#answer-8)
 
 # Share ownership across tools {#ownership}
 
@@ -1768,11 +1768,11 @@ incomplete configuration, a stable inventory contract and a bounded retry or
 removal procedure. A weak answer treats VM creation and service readiness as one
 undifferentiated success or proposes two tools managing the same configuration.
 
-**Exercise 9 — choose a boundary.** Terraform creates a VM; cloud-init installs
+<span id="exercise-9"></span>**Exercise 9 — choose a boundary.** Terraform creates a VM; cloud-init installs
 and rewrites nginx configuration on each boot; an Ansible role rewrites the same
 file; the application deployment script also restarts nginx. Describe one
 simpler ownership contract. What must happen before Terraform may remove a VM
-that still serves traffic?
+that still serves traffic? [Worked answer](#answer-9)
 
 # Worked answers {#answers}
 
@@ -1780,7 +1780,11 @@ Attempt the exercises first. These answers show reasoning rather than a single
 required phrasing. Your service topology may justify a different policy, but it
 must still explain the actual execution semantics.
 
+<span id="answer-1"></span>
+
 ## 1. Earlier effects survive
+
+[Back to exercise 1](#exercise-1)
 
 The installed configuration and service start remain. A failed health check does
 not undo them. Inspect the precise selected host, installed configuration,
@@ -1790,7 +1794,11 @@ activation step must be made explicit. If the health failure reflects an
 application regression, a blind retry may only reproduce it. A retry is sound
 only as a supported transition from known state; Ansible is not atomic.
 
+<span id="answer-2"></span>
+
 ## 2. A limit must resolve to the intended inventory identity
+
+[Back to exercise 2](#exercise-2)
 
 Against the lab inventory, `--limit 192.0.2.11` matches no host: patterns
 select inventory identities, and that address appears only as the value of
@@ -1807,7 +1815,11 @@ attaches. Use `lab-status-01` when that is the intended identity, and prove its
 effective connection address. A zero-target or differently configured run is
 not a successful implementation of the request.
 
+<span id="answer-3"></span>
+
 ## 3. Report and control the right transition
+
+[Back to exercise 3](#exercise-3)
 
 An ordinary `state: restarted` task restarts on every invocation, even when the
 configuration is unchanged. If all that is needed is to activate changed nginx
@@ -1819,7 +1831,11 @@ reload behaviour and test the resulting live state.
 A running unit and a successful service-management command do not establish the
 served release. Inspect documentation, logs and the actual acceptance response.
 
+<span id="answer-4"></span>
+
 ## 4. Extra variables win here; ordinary CLI flags need care
+
+[Back to exercise 4](#exercise-4)
 
 The JSON extra variable supplies integer 8082, overriding inventory and the role
 default. A plain `-u emergency` does not necessarily override inventory's
@@ -1828,7 +1844,11 @@ actual definitions or explicitly use the intended high-priority variable under
 your access policy. Do not fix an unexplained precedence conflict by scattering
 new assignments throughout the play.
 
+<span id="answer-5"></span>
+
 ## 5. Convergence and a 200 response leave important gaps
+
+[Back to exercise 5](#exercise-5)
 
 Three strong additional criteria might be:
 
@@ -1845,7 +1865,11 @@ For a stateful service, add an appropriate data correctness and recovery
 criterion. For a secret change, add permissions and log-disclosure checks.
 A repeat run proves only the state and paths you actually exercised.
 
+<span id="answer-6"></span>
+
 ## 6. A batch can change several hosts before its gate fails
+
+[Back to exercise 6](#exercise-6)
 
 Up to six hosts may have changed: the first host, then all five in the second
 batch. The failed task completes within the current batch; the fatal-error
@@ -1857,7 +1881,11 @@ operation across the entire rollout, nor does it establish idempotence or an
 external lock. A distinct migration phase with a service-specific contract is
 clearer.
 
+<span id="answer-7"></span>
+
 ## 7. Separate missed activation from rejected activation
+
+[Back to exercise 7](#exercise-7)
 
 One explanation is the lost notification: disk changed during the failed run,
 the handler never ran, and the rerun saw identical bytes. Another is that a reload
@@ -1872,7 +1900,11 @@ and active on the intended host, then prove the relevant health criterion. Only
 then should the rollout gate reopen. If traffic was drained, verify the
 membership transition as well.
 
+<span id="answer-8"></span>
+
 ## 8. Ciphertext in Git does not protect every plaintext copy
+
+[Back to exercise 8](#exercise-8)
 
 The target file is readable to every local user under `'0644'`. Set ownership
 and permissions appropriate to the actual reader, such as a dedicated application
@@ -1885,7 +1917,11 @@ logged and remove subsequent debug output of the value. Protect decryption
 credentials and job-log access. Also examine the application itself: neither
 Vault nor task logging policy prevents it from logging a secret after startup.
 
+<span id="answer-9"></span>
+
 ## 9. Give the file and lifecycle one owner each
+
+[Back to exercise 9](#exercise-9)
 
 A reasonable contract is: Terraform owns VM/network lifecycle and exports
 identity and connection data; cloud-init only establishes the bootstrap account,
