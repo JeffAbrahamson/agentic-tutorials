@@ -1,5 +1,5 @@
 #!/bin/sh
-# Replay the chapter 5 cluster experiments against a fresh three-node cluster.
+# Replay the chapter 6 cluster experiments against a fresh three-node cluster.
 # Destroys and recreates the rabbitmq-cluster-lab Compose project and volumes.
 set -u
 cd "$(dirname "$0")"

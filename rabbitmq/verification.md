@@ -53,9 +53,23 @@ A separate instrumented publish to the minority node showed connection, channel 
 
 ## Document checks
 
-`make -C rabbitmq` built the PDF without errors or missing-glyph warnings: 50 pages of 160 × 230 mm. A word bounding-box check found no text outside the horizontal body margins (6-point tolerance); the only text below the body is page numbers. All pages were rendered and inspected for layout, code wrapping, tables and headings.
+`make -C rabbitmq` built the PDF without errors or missing-glyph warnings: 60 pages of 160 × 230 mm. A word bounding-box check found no text outside the horizontal body margins (6-point tolerance); the only text below the body is page numbers. All pages were rendered and inspected for layout, code wrapping, tables and headings.
 Markdown code fences are balanced and the README's supporting-file links resolve. `producer.py` is reproduced in full and the worker loop verbatim. `git diff --check HEAD` passed.
+
+## Reading primer, 3 November 2026
+
+The parts of chapter 1 listed here ran against a disposable `rabbitmq:4.4.0-management` container, its ports on loopback only, with pika 1.4.4 on Python 3.14. The lab pins Python 3.12; nothing in the chapter depends on the difference. Observations:
+
+- An `exclusive=True` declare with an empty name succeeded without `durable`. The hello programs printed the output shown, with the queue listed as classic and durable between them. Without `durable=True`, `queue_declare` was closed with `541 INTERNAL_ERROR` naming `transient_nonexcl_queues`.
+- An empty queue name returned an `amq.gen-` name. Redeclaring `q1` with a different type gave the 406 shown. A `passive` declare of a missing queue and a publish to a missing exchange gave 404. A queue named `amq.mine` and a bad password gave 403.
+- The publish with properties delivered `message_id`, `headers`, `delivery_mode` and `content_type` as set, through a topic binding on `orders.*.created`.
+- `set_policy`, `list_policies` and `clear_policy` worked on the default vhost, and `list_queues` without `-p` reported that vhost. A consumer with prefetch 2 on 3 messages gave the counters shown. `list_connections` showed `running`.
+- `--formatter=json`, `-q`, `check_running`, `quorum_status`, `rabbitmq-plugins list -e` and `rabbitmqadmin list queues` (version 2.35.0) ran. The plugin markers, listener ports, log format, file paths and `10-defaults.conf` were read from that container. The HTTP API answered at `/api/queues/%2F/q2`.
+
+**Not run, and following the documentation source:** the 312, 320, 405 and 530 replies, a 406 from a bad ack, the `flow` and `blocking` connection states, `advanced.config`, the `.relative` and `.absolute` configuration families, the `RABBITMQ_` environment variables, `set_permissions`, `-n`, `amq.rabbitmq.reply-to`, `auto_delete`, `exclusive` queue removal, `x-message-ttl` and `x-expires`, the `-p jobs` form of `set_policy`, and the `ConnectionParameters` fragment, which pika accepted but did not use to connect. The same goes for `export_definitions`, `rabbitmq-upgrade` and the `#` wildcard. `basic_get` and `rabbitmqctl eval` did run. `www.rabbitmq.com/docs` refused automated requests on this date, so the `rabbitmq/rabbitmq-website` repository was read instead and the two newly cited pages were not fetched as rendered.
+
+Exercise and answer links were followed in the PDF from each link annotation to the text at its destination: 9 links each way, all landing on the right heading. Chapter 1's pages were rendered and inspected; the bounding-box check under "Document checks" dates from 21 October and covers the rest.
 
 ## Limits
 
-Not executed: the delayed-retry design sketch, throughput and prefetch tuning, TLS, upgrades between versions, true network partitions (nodes were stopped, not isolated), the `blocked_connection_timeout` parameter, AMQP 1.0 clients, and hosts other than Docker on Linux. The C++ code in chapter 8 was not compiled or run; library statements come from their READMEs and release metadata. Documentation URLs on rabbitmq.com are unversioned and were read on the date above. Nothing was run against a non-lab broker.
+Not executed: the delayed-retry design sketch, throughput and prefetch tuning, TLS, upgrades between versions, true network partitions (nodes were stopped, not isolated), the `blocked_connection_timeout` parameter, AMQP 1.0 clients, and hosts other than Docker on Linux. The C++ code in chapter 9 was not compiled or run; library statements come from their READMEs and release metadata. Documentation URLs on rabbitmq.com are unversioned and were read on the date above. Nothing was run against a non-lab broker.

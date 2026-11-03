@@ -1,5 +1,5 @@
 #!/bin/sh
-# Replay the single-node experiments from chapters 2-4 against a fresh broker.
+# Replay the single-node experiments from chapters 3-5 against a fresh broker.
 # Destroys and recreates the rabbitmq-lab Compose project and its volume.
 set -u
 cd "$(dirname "$0")"

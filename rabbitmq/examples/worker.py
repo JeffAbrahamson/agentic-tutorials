@@ -29,7 +29,7 @@ def main():
                         help="job that fails transiently: requeue it for retry")
     parser.add_argument("--retry-verb", choices=["reject", "nack"], default="reject",
                         help="how to requeue a flaky job; nack never reaches the "
-                             "delivery limit (chapter 4)")
+                             "delivery limit (chapter 5)")
     parser.add_argument("--crash-before-ack", type=int,
                         help="exit abruptly after recording this job, before acking it")
     args = parser.parse_args()

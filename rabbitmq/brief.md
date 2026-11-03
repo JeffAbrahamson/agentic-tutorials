@@ -14,7 +14,7 @@
 
 **Target.** RabbitMQ 4.4.0 (official Docker image `rabbitmq:4.4.0-management`, released 19–20 October 2026; 4.3 is the other community-supported series), Python client pika 1.4.4 on Python 3.12, local Docker Compose (single node and three-node cluster). C++ clients are discussed, not executed. AMQP 0-9-1 is the protocol taught; AMQP 1.0 and streams are noted where they change a decision.
 
-**Research.** 21 October 2026. Primary sources: rabbitmq.com documentation, RabbitMQ release notes, client library documentation and repositories. Distinguish documented guarantees from conventions and recommendations.
+**Research.** 21 October 2026; reading primer 3 November 2026. Primary sources: rabbitmq.com documentation, RabbitMQ release notes, client library documentation and repositories. Distinguish documented guarantees from conventions and recommendations.
 
 **Scope.** Broker model, routing, confirms and acknowledgements, prefetch, queue types, dead-lettering and retry, topology ownership, clustering and quorum, alarms and flow control, upgrades, observability, diagnosis, security basics, and C++ integration concerns. Outside scope: Kubernetes operator, federation and shovel beyond a mention, plugin development, exhaustive management API coverage, and Kafka migration.
 

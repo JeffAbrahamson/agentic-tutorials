@@ -1,6 +1,6 @@
 # RabbitMQ: from sockets to a broker you can trust
 
-The tutorial is [rabbitmq.pdf](rabbitmq.pdf): a 2–3 hour read, with prediction and review exercises and worked answers, covering routing, publisher confirms and consumer acknowledgements, queue types, retries and dead-lettering, topology ownership, clustering and node loss, alarms, upgrades, incident diagnosis, security, and an optional chapter on C++ clients.
+The tutorial is [rabbitmq.pdf](rabbitmq.pdf): a 2–3 hour read, with prediction and review exercises and worked answers, covering a reading primer, routing, publisher confirms and consumer acknowledgements, queue types, retries and dead-lettering, topology ownership, clustering and node loss, alarms, upgrades, incident diagnosis, security, and an optional chapter on C++ clients.
 
 The source is [tutorial.md](tutorial.md). Its scope and teaching assumptions are recorded in [brief.md](brief.md) and [outline.md](outline.md). The target is RabbitMQ 4.4.0 with Python 3.12 and pika 1.4.4; examples run against local Docker containers.
 
@@ -22,8 +22,8 @@ Requirements: Docker with Compose v2, Python 3.12, `curl`, and free loopback por
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-./lab.sh            # single-node experiments, chapters 2–4
-cluster/lab.sh      # three-node experiments, chapter 5
+./lab.sh            # single-node experiments, chapters 3–5
+cluster/lab.sh      # three-node experiments, chapter 6
 ```
 
 Both scripts **destroy and recreate** their own Compose project (`rabbitmq-lab` or `rabbitmq-cluster-lab`) and its volumes. All ports are published on `127.0.0.1` only, and the credentials and Erlang cookie are lab-only values. Tear down afterwards with `docker compose down -v` in `examples/` and in `examples/cluster/`.
@@ -35,4 +35,4 @@ Supporting files:
 - [Single-node lab script](examples/lab.sh).
 - [Cluster Compose file](examples/cluster/compose.yaml), [cluster configuration](examples/cluster/rabbitmq.conf) and [cluster lab script](examples/cluster/lab.sh).
 
-[verification.md](verification.md) records what was executed and what remains untested. The C++ code in chapter 8 is an untested excerpt.
+[verification.md](verification.md) records what was executed and what remains untested. The C++ code in chapter 9 is an untested excerpt.
